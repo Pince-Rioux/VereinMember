@@ -1,8 +1,12 @@
 name: publish
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to publish"
+        required: false
+        type: string
 
 jobs:
   publish:
@@ -31,13 +35,13 @@ jobs:
 
       - name: Publish to GitHub Packages
         env:
-          GH_PAT: *** secrets.GH_PAT }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
           REGISTRY="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
           echo "registry: $REGISTRY"
           code=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer ***" "$REGISTRY")
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" "$REGISTRY")
           echo "registry index status: $code"
           nupkg=$(find src -name '*.nupkg' -print -quit)
           [ -n "$nupkg" ] || { echo "::error::no nupkg"; exit 1; }
