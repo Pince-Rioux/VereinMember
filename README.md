@@ -33,6 +33,28 @@ Membership/
 3. Stable → PR into ClubSite main branch
 4. Module can later be extracted as independent service if needed
 
+## Reference Data (Departments and Fees)
+
+`Department` and `MembershipFee` are **reference data without admin UI**. There are no CRUD pages for them by design: they change rarely, and deleting a fee that members already reference would corrupt those records.
+
+Maintain them with SQL against the membership database:
+
+- Seed script: `shared-config/seed/seed-membership.sql` (departments + fee groups)
+- Tables: `Membership.Department`, `Membership.MembershipFee`
+
+### Rules to follow
+
+1. **Add a fee, do not rename its meaning.** Members store `MembershipFeeId`; changing the row keeps history consistent, inserting a new row for a new year keeps old members on the old amount.
+2. **Never delete a fee that is referenced.** Check first:
+   ```sql
+   SELECT COUNT(*) FROM Membership.Member WHERE MembershipFeeId = <id>;
+   ```
+   Retire a fee by leaving it in place; the registration form lists every row.
+3. **Registration requires at least one fee per category** (`Adult`, `Youth`, `Family`). A missing category breaks self-registration with "Bitte wählen Sie eine Beitragsgruppe".
+4. **Departments are optional** on a member (`DepartmentId` is nullable). Removing a department referenced by members leaves a dangling id, so deactivate by renaming instead of deleting.
+
+After changing reference data, no application restart is required — the forms read the tables on each request.
+
 ## Tech Stack
 
 - .NET 8 + ASP.NET Core
