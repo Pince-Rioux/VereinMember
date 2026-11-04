@@ -3,6 +3,7 @@ name: publish
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -30,15 +31,29 @@ jobs:
         working-directory: src/VereinMember
 
       - name: Publish to GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          nupkg=$(find src -name '*.nupkg' 2>/dev/null | head -1)
+          set -euo pipefail
+          REGISTRY="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+          echo "actor:        ${{ github.actor }}"
+          echo "owner:        ${{ github.repository_owner }}"
+          echo "registry:     $REGISTRY"
+
+          # Diagnostics: is the registry reachable and does the token authenticate?
+          index_code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GITHUB_TOKEN" "$REGISTRY")
+          echo "registry index status: $index_code"
+
+          nupkg=$(find src -name '*.nupkg' -print -quit)
           if [ -z "$nupkg" ]; then
-            echo "No .nupkg found" >&2
+            echo "::error::No .nupkg produced by dotnet pack"
             exit 1
           fi
-          echo "Publishing: $nupkg"
-          curl -X PUT \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary "@$nupkg" \
-            "https://nuget.pkg.github.com/${{ github.repository_owner }}/"
+          echo "package:      $nupkg"
+
+          dotnet nuget push "$nupkg" \
+            --source "$REGISTRY" \
+            --api-key "$GITHUB_TOKEN" \
+            --skip-duplicate
