@@ -30,30 +30,21 @@ jobs:
         working-directory: src/VereinMember
 
       - name: Publish to GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-<<<<<<< HEAD
-=======
-          # Configure NuGet source with GITHUB_TOKEN
-          dotnet nuget add source \
-            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            -n github \
-            -u "${{ github.actor }}" \
-            -p "${{ secrets.GITHUB_TOKEN }}" \
-            --store-password-in-clear-text || true
-          # Locate and push the package
->>>>>>> aba6e3c (fix: use -s flag (not -source) for nuget push, handle dup source)
-          nupkg=$(find src -name '*.nupkg' 2>/dev/null | head -1)
-          if [ -z "$nupkg" ]; then
-            echo "No .nupkg found" >&2
-            exit 1
-          fi
-          echo "Publishing: $nupkg"
-<<<<<<< HEAD
-          curl -X PUT \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary "@$nupkg" \
-            "https://nuget.pkg.github.com/${{ github.repository_owner }}/"
-=======
-          dotnet nuget push "$nupkg" -s "github"
->>>>>>> aba6e3c (fix: use -s flag (not -source) for nuget push, handle dup source)
+          set -euo pipefail
+          REGISTRY="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          echo "owner:    ${{ github.repository_owner }}"
+          echo "registry: $REGISTRY"
+          # Probe registry — 403/401 means bad token, 2xx means reachable
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GITHUB_TOKEN" "$REGISTRY")
+          echo "registry index status: $code"
+          nupkg=$(find src -name '*.nupkg' -print -quit)
+          [ -n "$nupkg" ] || { echo "::error::no nupkg"; exit 1; }
+          echo "package: $nupkg"
+          dotnet nuget push "$nupkg" \
+            -s "$REGISTRY" \
+            -k "$GITHUB_TOKEN" \
+            --skip-duplicate
