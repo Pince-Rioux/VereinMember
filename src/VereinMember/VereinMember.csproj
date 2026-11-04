@@ -25,7 +25,7 @@
     </PackageReference>
     <PackageReference Include="FluentValidation" Version="11.11.0" />
     <PackageReference Include="IbanNet" Version="6.2.0" />
-    <ProjectReference Include="../../../VereinMail/src/VereinMail/VereinMail.csproj" />
+    <PackageReference Include="VereinMail" Version="1.0.0-dev" />
     <PackageReference Include="MailKit" Version="4.17.0" />
   </ItemGroup>
 
