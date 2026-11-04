@@ -58,7 +58,7 @@ public class CreateModel(
             .FirstOrDefaultAsync(f => f.Id == Member.MembershipFeeId);
 
         // Compose BirthDate from cross-browser selects
-        if (!TryComposeBirthDate()) return await ReloadPageAsync();
+        if (!TryComposeBirthDate(Member, BirthDay, BirthMonth, BirthYear)) return await ReloadPageAsync();
 
         if (selectedFee?.Category == FeeCategory.Family)
         {
@@ -214,24 +214,9 @@ public class CreateModel(
             .ToListAsync();
     }
 
-    private bool TryComposeBirthDate()
+    private bool TryComposeBirthDate(Member member, int? day, int? month, int? year)
     {
-        if (BirthYear.HasValue && BirthMonth.HasValue && BirthDay.HasValue)
-        {
-            try
-            {
-                Member.BirthDate = new DateTime(BirthYear.Value, BirthMonth.Value, BirthDay.Value);
-                return true;
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                ModelState.AddModelError("Member.BirthDate", "Bitte geben Sie ein gültiges Datum ein.");
-                return false;
-            }
-        }
-
-        ModelState.AddModelError("Member.BirthDate", "Bitte wählen Sie ein Geburtsdatum aus (Tag, Monat, Jahr).");
-        return false;
+        return BirthDateHelper.TryComposeBirthDate(member, day, month, year, ModelState.AddModelError);
     }
 
     private async Task<IActionResult> ReloadPageAsync()

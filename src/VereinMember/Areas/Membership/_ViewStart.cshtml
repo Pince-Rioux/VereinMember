@@ -1,6 +1,40 @@
 @{
     // Use the host's ClubSite layout for consistent chrome.
-    // Note: partials in the host layout (like _MenuTopLevel) need app-relative paths
-    // because view discovery from the Membership area doesn't find them otherwise.
     Layout = "/Pages/_Layout.cshtml";
 }
+
+@if (!VereinMember.Extensions.ServiceCollectionExtensions.Enabled)
+{
+    Layout = null;
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>Deaktiviert</title>
+        <style>
+            body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 80vh; margin: 0; background: #f5f5f5; }
+            .card { background: #fff; border-radius: 8px; padding: 2rem; max-width: 480px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+            h1 { font-size: 1.5rem; color: #d32f2f; }
+            p { color: #666; }
+            a { color: #0d6efd; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>Mitgliederbereich nicht verfügbar</h1>
+            <p>Die Mitgliederverwaltung ist derzeit deaktiviert.</p>
+            <p><a href="https://vmd199614.tail1e95bd.ts.net:8444/">Zurück zur Startseite</a></p>
+        </div>
+    </body>
+    </html>
+    return;
+}
+
+@*
+    ClubSite-CSS-Links direkt mit absoluten Pfaden.
+*@
+<link rel="stylesheet" href="/assets/css/bootstrap.min.css">
+<link rel="stylesheet" href="/assets/fonts/fonts-lato-raleway.css">
+<link rel="stylesheet" href="/assets/css/style.min.css">
+<link href="/assets/css/fontawesome/fontawesome.min.css" rel="stylesheet">

@@ -27,11 +27,23 @@ public class LoginModel : PageModel
         ReturnUrl = returnUrl;
     }
 
+    private bool IsDisabled()
+    {
+        if (!VereinMember.Extensions.ServiceCollectionExtensions.Enabled)
+        {
+            ModelState.AddModelError(string.Empty, "Mitgliederbereich deaktiviert.");
+            return true;
+        }
+        return false;
+    }
+
     [BindProperty]
     public string? ReturnUrl { get; set; }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
+        if (IsDisabled()) return Page();
+
         var email = Request.Form["email"].ToString();
         var password = Request.Form["password"].ToString();
 

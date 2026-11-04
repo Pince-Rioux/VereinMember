@@ -1,6 +1,7 @@
 using VereinMember.Data;
 using VereinMember.Models;
 using VereinMember.Services;
+using VereinMail;
 using Microsoft.AspNetCore.Identity;
 using VereinMember.Services.Validators;
 using VereinMember.Services.Encryption;
@@ -16,11 +17,17 @@ namespace VereinMember.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Set by ClubSite based on ClubMembership.Enabled in AppSettings.
+    /// Checked by Membership _ViewStart to block pages when disabled.
+    /// </summary>
+    public static bool Enabled = true;
     public static IServiceCollection AddVereinMember(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         // Use ClubMembershipDb connection string, fall back to shared VolleyballClub
+        Enabled = configuration.GetValue<bool>("ClubMembership:Enabled");
         var connStr = configuration.GetConnectionString("ClubMembershipDb")
                       ?? configuration.GetConnectionString("VolleyballClub")
                       ?? throw new InvalidOperationException("No valid connection string found. Configure 'ClubMembershipDb' or 'VolleyballClub'.");
@@ -53,7 +60,23 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IInvitationService, InvitationService>();
         services.AddScoped<IMemberAccountService, DefaultMemberAccountService>();
-        services.TryAddScoped<IEmailSender, LogOnlyEmailSender>();
+        // Mail transport for the module:
+        //   File -> writes .eml files (development)
+        //   Smtp -> sends through a mail server (production)
+        //   anything else -> logs only (safe default when unconfigured)
+        services.Configure<MailOptions>(configuration.GetSection("MembershipMail"));
+        switch (configuration.GetValue<string>("MembershipMail:Mode")?.Trim().ToLowerInvariant())
+        {
+            case "file":
+                services.TryAddScoped<IEmailSender, FileEmailSender>();
+                break;
+            case "smtp":
+                services.TryAddScoped<IEmailSender, SmtpEmailSender>();
+                break;
+            default:
+                services.TryAddScoped<IEmailSender, LogOnlyEmailSender>();
+                break;
+        }
         services.AddScoped<IValidator<Member>, MemberValidator>();
 
         // Add AES-256-GCM encryption for sensitive personal data
