@@ -13,40 +13,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0
 
-      - name: Restore
-        run: dotnet restore
+      - name: Build package
         working-directory: src/VereinMember
-
-      - name: Build
-        run: dotnet build --no-restore
-        working-directory: src/VereinMember
-
-      - name: Package
-        run: dotnet pack --no-restore
-        working-directory: src/VereinMember
+        run: |
+          dotnet restore
+          dotnet build --no-restore
+          dotnet pack --no-restore
 
       - name: Publish to GitHub Packages
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          REGISTRY="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-          echo "registry: $REGISTRY"
-          code=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" "$REGISTRY")
-          echo "registry index status: $code"
+          SRC="https://nuget.pkg.github.com/Pince-Rioux"
           nupkg=$(find src -name '*.nupkg' -print -quit)
           [ -n "$nupkg" ] || { echo "::error::no nupkg"; exit 1; }
           echo "package: $nupkg"
           dotnet nuget push "$nupkg" \
-            -s "$REGISTRY" \
+            -s "$SRC" \
             -k "$GH_PAT" \
             --skip-duplicate

@@ -4,7 +4,7 @@
     <!-- Package metadata for NuGet publishing -->
     <PackageId>VereinMember</PackageId>
     <Title>VereinMember</Title>
-    <Version>1.0.0-dev</Version>
+    <Version>1.0.1-dev</Version>
     <Authors>axuno gGmbH and Contributors</Authors>
     <Description>Membership management module for ClubSite (Piranha CMS). Handles registration, profile, family groups, departments, fees, and member administration.</Description>
     <PackageProjectUrl>https://github.com/Pince-Rioux/VereinMember</PackageProjectUrl>
