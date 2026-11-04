@@ -31,20 +31,18 @@ jobs:
 
       - name: Publish to GitHub Packages
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: *** secrets.GH_PAT }}
         run: |
           set -euo pipefail
           REGISTRY="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-          echo "owner:    ${{ github.repository_owner }}"
           echo "registry: $REGISTRY"
-          # Probe registry — 403/401 means bad token, 2xx means reachable
           code=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer $GITHUB_TOKEN" "$REGISTRY")
+            -H "Authorization: Bearer ***" "$REGISTRY")
           echo "registry index status: $code"
           nupkg=$(find src -name '*.nupkg' -print -quit)
           [ -n "$nupkg" ] || { echo "::error::no nupkg"; exit 1; }
           echo "package: $nupkg"
           dotnet nuget push "$nupkg" \
             -s "$REGISTRY" \
-            -k "$GITHUB_TOKEN" \
+            -k "$GH_PAT" \
             --skip-duplicate
