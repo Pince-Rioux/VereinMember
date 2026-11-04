@@ -31,18 +31,14 @@ jobs:
 
       - name: Publish to GitHub Packages
         run: |
-          # Configure NuGet source with GITHUB_TOKEN
-          dotnet nuget add source \
-            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            -n github \
-            -u "${{ github.actor }}" \
-            -p "${{ secrets.GITHUB_TOKEN }}" \
-            --store-password-in-clear-text || true
-          # Locate and push the package
           nupkg=$(find src -name '*.nupkg' 2>/dev/null | head -1)
           if [ -z "$nupkg" ]; then
             echo "No .nupkg found" >&2
             exit 1
           fi
           echo "Publishing: $nupkg"
-          dotnet nuget push "$nupkg" -s "github"
+          curl -X PUT \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@$nupkg" \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/"
