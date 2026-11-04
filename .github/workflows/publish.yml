@@ -1,0 +1,46 @@
+name: publish
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0
+
+      - uses: extractions/setup-just@v2
+        with:
+          just-version: 1.36.0
+
+      - name: Restore
+        run: dotnet restore
+        working-directory: src/VereinMember
+
+      - name: Build
+        run: dotnet build --no-restore
+        working-directory: src/VereinMember
+
+      - name: Package
+        run: dotnet pack --no-restore
+        working-directory: src/VereinMember
+
+      - name: Publish to GitHub Packages
+        run: |
+          nupkg=$(find src/VereinMember -name '*.nupkg' -path '*/Release/*' 2>/dev/null | head -1)
+          if [ -z "$nupkg" ]; then
+            echo "No .nupkg found" >&2
+            exit 1
+          fi
+          echo "Publishing: $nupkg"
+          dotnet nuget push "$nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}"
