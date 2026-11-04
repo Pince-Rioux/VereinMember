@@ -31,12 +31,12 @@ jobs:
 
       - name: Publish to GitHub Packages
         run: |
-          # Configure NuGet source with GITHUB_TOKEN (has write:packages scope)
-          dotnet nuget source add \
-            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            --name github \
-            --username "${{ github.actor }}" \
-            --password "${{ secrets.GITHUB_TOKEN }}"
+          # Authenticate to GitHub Packages NuGet registry via .netrc
+          cat <<EOF >> ~/.netrc
+          machine nuget.pkg.github.com
+              login ${{ github.actor }}
+              password ${{ secrets.GITHUB_TOKEN }}
+          EOF
           # Locate and push the package
           nupkg=$(find src -name '*.nupkg' 2>/dev/null | head -1)
           if [ -z "$nupkg" ]; then
@@ -44,4 +44,5 @@ jobs:
             exit 1
           fi
           echo "Publishing: $nupkg"
-          dotnet nuget push "$nupkg" --source github
+          dotnet nuget push "$nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
