@@ -16,6 +16,15 @@ jobs:
         with:
           dotnet-version: 8.0
 
+      - name: Add NuGet sources
+        run: |
+          dotnet nuget source add "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --name github \
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GITHUB_TOKEN }}" || true
+          dotnet nuget source add ../../ClubSite/LocalPackages \
+            --name LocalPackages || true
+
       - run: dotnet restore
         working-directory: src/VereinMember
 
