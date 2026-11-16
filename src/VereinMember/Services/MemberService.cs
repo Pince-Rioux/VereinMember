@@ -273,6 +273,8 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             .FirstOrDefaultAsync(m => m.Id == id)
             ?? throw new KeyNotFoundException($"Member with Id {id} not found.");
 
+        var oldValues = existing.ToJson();
+
         // Only allow editing these fields
         existing.FirstName = updated.FirstName;
         existing.LastName = updated.LastName;
@@ -301,8 +303,6 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             throw new InvalidOperationException("Bank details cannot be changed through profile editing.");
         if (existing.Status != updated.Status)
             throw new InvalidOperationException("Status cannot be changed through profile editing.");
-
-        var oldValues = existing.ToJson();
 
         context.Members.Update(existing);
 
