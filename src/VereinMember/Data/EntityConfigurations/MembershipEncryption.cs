@@ -3,7 +3,7 @@ namespace VereinMember.Data.EntityConfigurations;
 /// <summary>
 /// Static accessor for the encryption service, needed by EF Core value converters.
 /// Must be initialized at app startup (before any DbContext instance is created).
-/// By default uses a dev-only auto-generated key; production MUST configure a real key.
+/// A persistent 256-bit key must be configured via MembershipEncryption:Key or MEMBERSHIP_ENCRYPTION_KEY.
 /// </summary>
 public static class MembershipEncryption
 {
