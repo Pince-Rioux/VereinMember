@@ -1,3 +1,4 @@
+using System.Text.Json;
 using VereinMember.Tests.Fixtures;
 
 namespace VereinMember.Services.Tests;
@@ -449,6 +450,61 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Family member must belong to a family group.");
+    }
+
+    // ----------------------------------------------------------------------- //
+    //  UpdateOwnProfileAsync tests
+    // ----------------------------------------------------------------------- //
+
+    [Fact]
+    public async Task UpdateOwnProfile_AuditContainsOriginalAndUpdatedValues()
+    {
+        await using var context = _dbFixture.CreateContext();
+        var auditMock = new Mock<IAuditService>();
+        var service = new MemberService(context, auditMock.Object);
+
+        var fee = CreateAdultFee();
+        var member = CreateAdultMember(0, "profile@example.com", fee);
+        member.Phone = "old phone";
+        context.MembershipFees.Add(fee);
+        context.Members.Add(member);
+        await context.SaveChangesAsync();
+
+        var originalUpdatedAt = member.UpdatedAt;
+        var update = new Member
+        {
+            FirstName = "New name",
+            LastName = member.LastName,
+            Phone = "new phone",
+            Email = member.Email,
+            BirthDate = member.BirthDate,
+            MembershipFeeId = member.MembershipFeeId,
+            Status = member.Status
+        };
+        // UpdateOwnProfileAsync loads a detached entity and attaches it for saving.
+        context.ChangeTracker.Clear();
+
+        var result = await service.UpdateOwnProfileAsync(member.Id, update, "profile-user");
+
+        auditMock.Verify(a => a.LogAsync(
+            nameof(Member), member.Id, "ProfileUpdated",
+            It.IsAny<string>(), It.IsAny<string>(),
+            "FirstName,LastName,Phone,Street,City,ZipCode,Country,Notes",
+            "profile-user"), Times.Once);
+        var audit = auditMock.Invocations.Single(i => i.Method.Name == nameof(IAuditService.LogAsync));
+        using var oldValues = JsonDocument.Parse((string)audit.Arguments[3]!);
+        using var newValues = JsonDocument.Parse((string)audit.Arguments[4]!);
+        oldValues.RootElement.GetProperty(nameof(Member.FirstName)).GetString().Should().Be("John");
+        oldValues.RootElement.GetProperty(nameof(Member.Phone)).GetString().Should().Be("old phone");
+        oldValues.RootElement.GetProperty(nameof(Member.UpdatedAt)).GetDateTime().Should().Be(originalUpdatedAt);
+        newValues.RootElement.GetProperty(nameof(Member.FirstName)).GetString().Should().Be("New name");
+        newValues.RootElement.GetProperty(nameof(Member.Phone)).GetString().Should().Be("new phone");
+        newValues.RootElement.GetProperty(nameof(Member.UpdatedAt)).GetDateTime().Should().Be(result.UpdatedAt);
+        result.UpdatedAt.Should().BeAfter(originalUpdatedAt);
+
+        var saved = await context.Members.AsNoTracking().SingleAsync(m => m.Id == member.Id);
+        saved.FirstName.Should().Be("New name");
+        saved.Phone.Should().Be("new phone");
     }
 
     // ----------------------------------------------------------------------- //
