@@ -72,6 +72,11 @@ public static class ServiceCollectionExtensions
                 services.TryAddScoped<IEmailSender, FileEmailSender>();
                 break;
             case "smtp":
+                if (string.IsNullOrWhiteSpace(configuration["MembershipMail:Smtp:Server"]))
+                {
+                    throw new InvalidOperationException(
+                        "MembershipMail:Smtp:Server must be configured when MembershipMail:Mode is 'Smtp'.");
+                }
                 services.TryAddScoped<IEmailSender, SmtpEmailSender>();
                 break;
             default:
