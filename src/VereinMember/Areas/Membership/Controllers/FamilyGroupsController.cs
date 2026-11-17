@@ -1,26 +1,23 @@
-using VereinMember.Data;
-using VereinMember.Extensions;
-using VereinMember.Models;
-using VereinMember.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using VereinMember.Areas.Membership.Dtos;
+using VereinMember.Extensions;
+using VereinMember.Services;
 
 namespace VereinMember.Areas.Membership.Controllers;
 
 [ApiController]
 [Authorize]
+[RequireMembershipEnabled]
 [Area("Membership")]
 [Route("membership/api/family-groups")]
 public class FamilyGroupsController : ControllerBase
 {
     private readonly IMemberService _memberService;
-    private readonly MembershipDbContext _context;
 
-    public FamilyGroupsController(IMemberService memberService, MembershipDbContext context)
+    public FamilyGroupsController(IMemberService memberService)
     {
         _memberService = memberService;
-        _context = context;
     }
 
     [HttpGet]
@@ -28,7 +25,7 @@ public class FamilyGroupsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var groups = await _memberService.GetAllFamilyGroupsAsync();
-        return Ok(groups);
+        return Ok(groups.Select(g => FamilyGroupResponseDto.FromFamilyGroup(g, includeInternalNotes: true)).ToList());
     }
 
     [HttpGet("{id}")]
@@ -39,17 +36,20 @@ public class FamilyGroupsController : ControllerBase
         if (group == null)
             return NotFound();
 
-        return Ok(group);
+        return Ok(FamilyGroupResponseDto.FromFamilyGroup(group, includeInternalNotes: true));
     }
 
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
-    public async Task<IActionResult> Create([FromBody] FamilyGroup group)
+    public async Task<IActionResult> Create([FromBody] CreateFamilyGroupRequestDto request)
     {
         var created = await _memberService.CreateFamilyGroupAsync(
-            group.Name, User.Identity?.Name ?? "system");
+            request.Name, User.Identity?.Name ?? "system");
 
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = created.Id },
+            FamilyGroupResponseDto.FromFamilyGroup(created, includeInternalNotes: true));
     }
 
     [HttpPost("{familyGroupId}/members/{memberId}")]
@@ -59,7 +59,7 @@ public class FamilyGroupsController : ControllerBase
         try
         {
             var group = await _memberService.AddMemberToFamilyGroupAsync(memberId, familyGroupId);
-            return Ok(group);
+            return Ok(FamilyGroupResponseDto.FromFamilyGroup(group, includeInternalNotes: true));
         }
         catch (KeyNotFoundException ex)
         {
@@ -88,7 +88,7 @@ public class FamilyGroupsController : ControllerBase
         try
         {
             var group = await _memberService.RemoveMemberFromFamilyGroupAsync(memberId);
-            return Ok(group);
+            return Ok(FamilyGroupResponseDto.FromFamilyGroup(group, includeInternalNotes: true));
         }
         catch (KeyNotFoundException ex)
         {

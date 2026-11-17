@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace VereinMember.Areas.Membership.Pages.Members;
 
 [Authorize(Policy = AuthorizationPolicies.MemberWrite)]
+[RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
 public class CreateModel(
     IMemberService memberService,

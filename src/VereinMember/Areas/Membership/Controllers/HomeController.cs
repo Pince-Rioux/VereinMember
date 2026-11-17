@@ -6,6 +6,7 @@ namespace VereinMember.Areas.Membership.Controllers;
 
 [Area("Membership")]
 [Authorize(Policy = AuthorizationPolicies.MemberView)]
+[RequireMembershipEnabled]
 public class HomeController : Controller
 {
     public IActionResult Index()

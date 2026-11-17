@@ -1,3 +1,4 @@
+using VereinMember.Extensions;
 using VereinMember.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace VereinMember.Areas.Membership.Pages;
 
+[RequireMembershipEnabled]
 public class LogoutModel : PageModel
 {
     private readonly SignInManager<MembershipUser> _signInManager;

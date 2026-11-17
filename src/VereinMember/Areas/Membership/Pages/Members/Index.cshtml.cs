@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace VereinMember.Areas.Membership.Pages.Members;
 
 [Authorize(Policy = AuthorizationPolicies.MemberView)]
+[RequireMembershipEnabled]
 public class IndexModel(IMemberService memberService, MembershipDbContext context) : PageModel
 {
     [BindProperty(SupportsGet = true)]

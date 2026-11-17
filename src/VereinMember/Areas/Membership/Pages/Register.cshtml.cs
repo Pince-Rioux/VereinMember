@@ -1,4 +1,5 @@
 using VereinMember.Data;
+using VereinMember.Extensions;
 using VereinMember.Models;
 using VereinMember.Services;
 using FluentValidation;
@@ -6,16 +7,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace VereinMember.Areas.Membership.Pages;
 
+[RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
 public class RegisterModel(
     IMemberService memberService,
     IInvitationService invitationService,
     IMemberAccountService accountService,
     IValidator<Member> validator,
-    MembershipDbContext context) : PageModel
+    MembershipDbContext context,
+    ILogger<RegisterModel>? logger = null) : PageModel
 {
     [BindProperty]
     public Member Member { get; set; } = new();
@@ -162,10 +166,8 @@ public class RegisterModel(
         }
         catch (Exception ex)
         {
-            var detail = ex.Message;
-            if (ex.InnerException != null)
-                detail += " | Inner: " + ex.InnerException.Message;
-            ModelState.AddModelError(string.Empty, $"Registrierung fehlgeschlagen: {detail}");
+            logger?.LogError(ex, "Public registration failed for {Email}", Member.Email);
+            ModelState.AddModelError(string.Empty, "Registrierung fehlgeschlagen. Bitte prüfen Sie Ihre Eingaben oder versuchen Sie es später erneut.");
             await LoadOptionsAsync();
             return Page();
         }
@@ -267,10 +269,8 @@ public class RegisterModel(
         }
         catch (Exception ex)
         {
-            var detail = ex.Message;
-            if (ex.InnerException != null)
-                detail += " | Inner: " + ex.InnerException.Message;
-            ModelState.AddModelError(string.Empty, $"Registrierung fehlgeschlagen: {detail}");
+            logger?.LogError(ex, "Public family registration failed for {Email}", Member.Email);
+            ModelState.AddModelError(string.Empty, "Registrierung fehlgeschlagen. Bitte prüfen Sie Ihre Eingaben oder versuchen Sie es später erneut.");
             await LoadOptionsAsync();
             return Page();
         }

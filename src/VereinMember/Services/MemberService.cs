@@ -199,10 +199,9 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         return allMembers;
     }
 
-    public async Task<Member> UpdateAsync(Member member)
+    public async Task<Member> UpdateAsync(Member member, string performedBy = "system")
     {
         var existing = await context.Members
-            .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Id == member.Id);
 
         if (existing == null)
@@ -216,16 +215,21 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             .FirstOrDefaultAsync(f => f.Id == member.MembershipFeeId)
             ?? throw new InvalidOperationException("Selected membership fee not found.");
 
+        var guardianMemberId = member.GuardianMemberId;
+        var familyGroupId = member.FamilyGroupId;
+
         // Validate based on fee category
         switch (fee.Category)
         {
             case FeeCategory.Youth:
-                if (member.GuardianMemberId == null)
+                if (guardianMemberId == null)
                     throw new InvalidOperationException("Youth member must have a guardian.");
+                if (guardianMemberId == existing.Id)
+                    throw new InvalidOperationException("A member cannot be their own guardian.");
                 var guardianFee = await context.MembershipFees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(f => f.Id == context.Members
-                        .Where(m => m.Id == member.GuardianMemberId)
+                        .Where(m => m.Id == guardianMemberId)
                         .Select(m => m.MembershipFeeId)
                         .FirstOrDefault());
                 if (guardianFee == null || guardianFee.Category != FeeCategory.Adult)
@@ -233,20 +237,50 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
                 break;
 
             case FeeCategory.Family:
-                if (member.FamilyGroupId == null)
+                if (familyGroupId == null)
                     throw new InvalidOperationException("Family member must belong to a family group.");
                 break;
 
             case FeeCategory.Adult:
-                member.GuardianMemberId = null;
-                member.FamilyGroupId = null;
+                guardianMemberId = null;
+                familyGroupId = null;
                 break;
         }
 
         var oldValues = existing.ToAuditJson();
-        member.UpdatedAt = DateTime.UtcNow;
 
-        context.Members.Update(member);
+        // Apply optimistic concurrency token supplied by the caller
+        if (member.ConcurrencyToken is { Length: > 0 })
+        {
+            context.Entry(existing).Property(m => m.ConcurrencyToken).OriginalValue = member.ConcurrencyToken;
+        }
+
+        var changedFields = new List<string>();
+        void TrackChange<T>(string fieldName, T currentValue, T newValue, Action apply)
+        {
+            if (!EqualityComparer<T>.Default.Equals(currentValue, newValue))
+                changedFields.Add(fieldName);
+            apply();
+        }
+
+        TrackChange(nameof(Member.FirstName), existing.FirstName, member.FirstName, () => existing.FirstName = member.FirstName);
+        TrackChange(nameof(Member.LastName), existing.LastName, member.LastName, () => existing.LastName = member.LastName);
+        TrackChange(nameof(Member.Email), existing.Email, member.Email, () => existing.Email = member.Email);
+        TrackChange(nameof(Member.Phone), existing.Phone, member.Phone, () => existing.Phone = member.Phone);
+        TrackChange(nameof(Member.BirthDate), existing.BirthDate, member.BirthDate, () => existing.BirthDate = member.BirthDate);
+        TrackChange(nameof(Member.Street), existing.Street, member.Street, () => existing.Street = member.Street);
+        TrackChange(nameof(Member.City), existing.City, member.City, () => existing.City = member.City);
+        TrackChange(nameof(Member.ZipCode), existing.ZipCode, member.ZipCode, () => existing.ZipCode = member.ZipCode);
+        TrackChange(nameof(Member.Country), existing.Country, member.Country, () => existing.Country = member.Country);
+        TrackChange(nameof(Member.BankIban), existing.BankIban, member.BankIban, () => existing.BankIban = member.BankIban);
+        TrackChange(nameof(Member.BankBic), existing.BankBic, member.BankBic, () => existing.BankBic = member.BankBic);
+        TrackChange(nameof(Member.DepartmentId), existing.DepartmentId, member.DepartmentId, () => existing.DepartmentId = member.DepartmentId);
+        TrackChange(nameof(Member.MembershipFeeId), existing.MembershipFeeId, member.MembershipFeeId, () => existing.MembershipFeeId = member.MembershipFeeId);
+        TrackChange(nameof(Member.GuardianMemberId), existing.GuardianMemberId, guardianMemberId, () => existing.GuardianMemberId = guardianMemberId);
+        TrackChange(nameof(Member.FamilyGroupId), existing.FamilyGroupId, familyGroupId, () => existing.FamilyGroupId = familyGroupId);
+        TrackChange(nameof(Member.Notes), existing.Notes, member.Notes, () => existing.Notes = member.Notes);
+
+        existing.UpdatedAt = DateTime.UtcNow;
 
         try
         {
@@ -258,12 +292,12 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         }
 
         await auditService.LogAsync(
-            nameof(Member), member.Id, "Updated",
-            oldValues, member.ToAuditJson(),
-            string.Empty,
-            member.CreatedBy);
+            nameof(Member), existing.Id, "Updated",
+            oldValues, existing.ToAuditJson(),
+            string.Join(",", changedFields),
+            string.IsNullOrWhiteSpace(performedBy) ? "system" : performedBy);
 
-        return member;
+        return existing;
     }
 
     public async Task<Member> UpdateOwnProfileAsync(int id, Member updated, string performedBy)
@@ -303,6 +337,11 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             throw new InvalidOperationException("Bank details cannot be changed through profile editing.");
         if (existing.Status != updated.Status)
             throw new InvalidOperationException("Status cannot be changed through profile editing.");
+
+        if (updated.ConcurrencyToken is { Length: > 0 })
+        {
+            context.Entry(existing).Property(m => m.ConcurrencyToken).OriginalValue = updated.ConcurrencyToken;
+        }
 
         context.Members.Update(existing);
 
@@ -350,6 +389,20 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         member.LeftAt = DateTime.UtcNow;
         member.Status = MemberStatus.Former;
         member.UpdatedAt = DateTime.UtcNow;
+
+        // Revoke active sessions and block future logins for deactivated member
+        if (!string.IsNullOrWhiteSpace(member.Email))
+        {
+            var identityUsers = await context.Users
+                .Where(u => u.Email == member.Email)
+                .ToListAsync();
+            foreach (var user in identityUsers)
+            {
+                user.SecurityStamp = Guid.NewGuid().ToString();
+                user.LockoutEnabled = true;
+                user.LockoutEnd = DateTimeOffset.MaxValue;
+            }
+        }
 
         await context.SaveChangesAsync();
 
