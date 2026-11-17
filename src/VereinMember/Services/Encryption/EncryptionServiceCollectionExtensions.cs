@@ -9,21 +9,20 @@ public static class EncryptionServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Key from config (appsettings) or environment variable
-        var key = configuration["MembershipEncryption:Key"]
-                  ?? Environment.GetEnvironmentVariable("MEMBERSHIP_ENCRYPTION_KEY");
+        // Key from config (appsettings) or environment variable — fail closed if missing
+        var key = configuration["MembershipEncryption:Key"];
+        if (string.IsNullOrWhiteSpace(key))
+            key = Environment.GetEnvironmentVariable("MEMBERSHIP_ENCRYPTION_KEY");
 
-        if (string.IsNullOrEmpty(key))
+        if (string.IsNullOrWhiteSpace(key))
         {
-            // In development, generate and log a stable dev key
-            // In production, this MUST be configured via environment variable
-            key = Convert.ToBase64String(
-                System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-            // In a real app, log a warning here
+            throw new InvalidOperationException(
+                "MembershipEncryption:Key configuration or MEMBERSHIP_ENCRYPTION_KEY environment variable must be set to a valid base64-encoded 256-bit (32-byte) key.");
         }
 
-        services.AddSingleton<IEncryptionService>(
-            new AesEncryptionService(key));
+        var encryptionService = new AesEncryptionService(key);
+        services.AddSingleton<IEncryptionService>(encryptionService);
+        Data.EntityConfigurations.MembershipEncryption.Initialize(encryptionService);
         return services;
     }
 }

@@ -79,10 +79,16 @@ public static class ServiceCollectionExtensions
         }
         services.AddScoped<IValidator<Member>, MemberValidator>();
 
-        // Add AES-256-GCM encryption for sensitive personal data
-        var key = configuration["MembershipEncryption:Key"]
-                  ?? Environment.GetEnvironmentVariable("MEMBERSHIP_ENCRYPTION_KEY")
-                  ?? Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        // Add AES-256-GCM encryption for sensitive personal data (fail closed if key is missing)
+        var key = configuration["MembershipEncryption:Key"];
+        if (string.IsNullOrWhiteSpace(key))
+            key = Environment.GetEnvironmentVariable("MEMBERSHIP_ENCRYPTION_KEY");
+
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new InvalidOperationException(
+                "MembershipEncryption:Key configuration or MEMBERSHIP_ENCRYPTION_KEY environment variable must be set to a valid base64-encoded 256-bit (32-byte) key.");
+        }
 
         var encryptionService = new AesEncryptionService(key);
         services.AddSingleton<IEncryptionService>(encryptionService);

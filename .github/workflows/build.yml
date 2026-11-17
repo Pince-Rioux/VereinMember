@@ -6,15 +6,21 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0
+          dotnet-version: 8.0.x
 
       - name: Add NuGet sources
         run: |
@@ -22,11 +28,15 @@ jobs:
             --name github \
             --username "${{ github.actor }}" \
             --password "${{ secrets.GITHUB_TOKEN }}" || true
-          dotnet nuget source add ../../ClubSite/LocalPackages \
-            --name LocalPackages || true
 
-      - run: dotnet restore
-        working-directory: src/VereinMember
+      - name: Restore
+        run: dotnet restore tests/VereinMember.Tests/VereinMember.Tests.csproj
 
-      - run: dotnet build --no-restore
-        working-directory: src/VereinMember
+      - name: Build
+        run: dotnet build tests/VereinMember.Tests/VereinMember.Tests.csproj --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test tests/VereinMember.Tests/VereinMember.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Pack
+        run: dotnet pack src/VereinMember/VereinMember.csproj --no-build --configuration Release -o .nupkg-test

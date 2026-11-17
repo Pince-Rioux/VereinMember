@@ -19,9 +19,20 @@ public class AesEncryptionService : IEncryptionService
 
     public AesEncryptionService(string base64Key)
     {
-        // Expect 32 bytes (256-bit) encoded as base64
-        _key = Convert.FromBase64String(base64Key)
-            ?? throw new ArgumentException("Encryption key must be a valid base64-encoded 256-bit key.");
+        if (string.IsNullOrWhiteSpace(base64Key))
+            throw new ArgumentException("Encryption key must be a non-empty base64-encoded 256-bit (32-byte) key.", nameof(base64Key));
+
+        try
+        {
+            _key = Convert.FromBase64String(base64Key);
+        }
+        catch (FormatException ex)
+        {
+            throw new ArgumentException("Encryption key must be a valid base64-encoded 256-bit (32-byte) key.", nameof(base64Key), ex);
+        }
+
+        if (_key.Length != 32)
+            throw new ArgumentException($"Encryption key must decode to exactly 32 bytes (256 bits), but was {_key.Length} bytes.", nameof(base64Key));
     }
 
     public string Encrypt(string plaintext)
@@ -51,6 +62,9 @@ public class AesEncryptionService : IEncryptionService
         if (string.IsNullOrEmpty(ciphertext)) return ciphertext;
 
         var data = Convert.FromBase64String(ciphertext);
+        if (data.Length < 28)
+            throw new CryptographicException("Ciphertext is too short to contain a valid AES-GCM nonce and tag.");
+
         var nonce = data[..12];
         var tag = data[12..28];
         var cipherBytes = data[28..];
