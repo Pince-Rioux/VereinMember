@@ -1,23 +1,22 @@
-using VereinMember.Data;
+using System.ComponentModel.DataAnnotations;
 using VereinMember.Extensions;
 using VereinMember.Models;
 using VereinMember.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace VereinMember.Areas.Membership.Pages;
 
 [Authorize]
 [RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
-public class ProfileModel(
-    IMemberService memberService,
-    MembershipDbContext context) : PageModel
+public class ProfileModel(IMemberService memberService) : PageModel
 {
+    public Member? Member { get; set; }
+
     [BindProperty]
-    public Member Member { get; set; } = new();
+    public ProfileUpdateInputModel Input { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -34,6 +33,7 @@ public class ProfileModel(
         }
 
         Member = member;
+        Input = ProfileUpdateInputModel.FromMember(member);
         return Page();
     }
 
@@ -45,45 +45,109 @@ public class ProfileModel(
             return Challenge();
         }
 
-        // Verify the logged-in user owns this profile
-        var currentMember = await context.Members
-            .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == Member.Id);
+        var currentMember = await memberService.GetByEmailAsync(email);
+        if (currentMember == null)
+        {
+            return NotFound();
+        }
 
-        if (currentMember == null || currentMember.Email != email)
+        if (currentMember.Id != Input.Id)
         {
             return Forbid();
         }
 
-        // Basic validation
-        if (string.IsNullOrWhiteSpace(Member.FirstName))
-            ModelState.AddModelError("Member.FirstName", "Vorname ist erforderlich.");
-        if (string.IsNullOrWhiteSpace(Member.LastName))
-            ModelState.AddModelError("Member.LastName", "Nachname ist erforderlich.");
-
         if (!ModelState.IsValid)
         {
-            // Reload the member with navigation properties for display
-            Member = await memberService.GetByEmailAsync(email) ?? Member;
+            Member = currentMember;
             return Page();
         }
 
         try
         {
-            var performedBy = User.Identity?.Name ?? "system";
-            var updated = await memberService.UpdateOwnProfileAsync(Member.Id, Member, performedBy);
+            var updatePayload = new Member
+            {
+                Id = currentMember.Id,
+                FirstName = Input.FirstName.Trim(),
+                LastName = Input.LastName.Trim(),
+                Phone = string.IsNullOrWhiteSpace(Input.Phone) ? null : Input.Phone.Trim(),
+                Street = string.IsNullOrWhiteSpace(Input.Street) ? null : Input.Street.Trim(),
+                ZipCode = string.IsNullOrWhiteSpace(Input.ZipCode) ? null : Input.ZipCode.Trim(),
+                City = string.IsNullOrWhiteSpace(Input.City) ? null : Input.City.Trim(),
+                Country = string.IsNullOrWhiteSpace(Input.Country) ? null : Input.Country.Trim(),
+                Notes = string.IsNullOrWhiteSpace(Input.Notes) ? null : Input.Notes.Trim(),
+                ConcurrencyToken = Input.ConcurrencyToken,
+
+                // Immutable / admin-controlled fields preserved from stored member
+                Email = currentMember.Email,
+                BirthDate = currentMember.BirthDate,
+                MembershipFeeId = currentMember.MembershipFeeId,
+                DepartmentId = currentMember.DepartmentId,
+                GuardianMemberId = currentMember.GuardianMemberId,
+                FamilyGroupId = currentMember.FamilyGroupId,
+                BankIban = currentMember.BankIban,
+                BankBic = currentMember.BankBic,
+                Status = currentMember.Status
+            };
+
+            await memberService.UpdateOwnProfileAsync(currentMember.Id, updatePayload, email);
             TempData["Success"] = "Profil erfolgreich aktualisiert.";
             return RedirectToPage();
         }
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            Member = await memberService.GetByEmailAsync(email) ?? Member;
+            Member = currentMember;
             return Page();
         }
         catch (KeyNotFoundException)
         {
             return NotFound();
         }
+    }
+
+    public sealed class ProfileUpdateInputModel
+    {
+        public int Id { get; set; }
+        public byte[] ConcurrencyToken { get; set; } = [];
+
+        [Required(ErrorMessage = "Vorname ist erforderlich.")]
+        [MaxLength(100)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Nachname ist erforderlich.")]
+        [MaxLength(100)]
+        public string LastName { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string? Phone { get; set; }
+
+        [MaxLength(200)]
+        public string? Street { get; set; }
+
+        [MaxLength(20)]
+        public string? ZipCode { get; set; }
+
+        [MaxLength(100)]
+        public string? City { get; set; }
+
+        [MaxLength(100)]
+        public string? Country { get; set; }
+
+        [MaxLength(2000)]
+        public string? Notes { get; set; }
+
+        public static ProfileUpdateInputModel FromMember(Member member) => new()
+        {
+            Id = member.Id,
+            ConcurrencyToken = member.ConcurrencyToken,
+            FirstName = member.FirstName,
+            LastName = member.LastName,
+            Phone = member.Phone,
+            Street = member.Street,
+            ZipCode = member.ZipCode,
+            City = member.City,
+            Country = member.Country,
+            Notes = member.Notes
+        };
     }
 }

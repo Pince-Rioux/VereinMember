@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace VereinMember.Areas.Membership.Pages.Members;
 
@@ -19,7 +20,8 @@ public class CreateModel(
     IInvitationService invitationService,
     IMemberAccountService accountService,
     IValidator<Member> validator,
-    MembershipDbContext context) : PageModel
+    MembershipDbContext context,
+    IConfiguration? configuration = null) : PageModel
 {
     [BindProperty]
     public Member Member { get; set; } = new();
@@ -83,8 +85,7 @@ public class CreateModel(
 
         // Create invitation + send Magic-Link email
         var invitation = await invitationService.CreateInvitationAsync(created.Id, created.Email);
-        var inviteUrl = Url.PageLink("Activate", null, new { token = invitation.Token })
-                        ?? $"/Membership/Activate?token={invitation.Token}";
+        var inviteUrl = ActivationUrlBuilder.Build(Url, invitation.Token, configuration);
         await accountService.SendInvitationEmailAsync(
             created.Email,
             $"{created.FirstName} {created.LastName}",
@@ -175,8 +176,7 @@ public class CreateModel(
             foreach (var cm in createdMembers)
             {
                 var invitation = await invitationService.CreateInvitationAsync(cm.Id, cm.Email);
-                var inviteUrl = Url.PageLink("Activate", null, new { token = invitation.Token })
-                                ?? $"/Membership/Activate?token={invitation.Token}";
+                var inviteUrl = ActivationUrlBuilder.Build(Url, invitation.Token, configuration);
                 await accountService.SendInvitationEmailAsync(
                     cm.Email,
                     $"{cm.FirstName} {cm.LastName}",

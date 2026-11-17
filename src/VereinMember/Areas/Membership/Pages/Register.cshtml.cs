@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace VereinMember.Areas.Membership.Pages;
@@ -19,7 +20,8 @@ public class RegisterModel(
     IMemberAccountService accountService,
     IValidator<Member> validator,
     MembershipDbContext context,
-    ILogger<RegisterModel>? logger = null) : PageModel
+    ILogger<RegisterModel>? logger = null,
+    IConfiguration? configuration = null) : PageModel
 {
     [BindProperty]
     public Member Member { get; set; } = new();
@@ -153,7 +155,7 @@ public class RegisterModel(
 
             // Send invitation email with magic link
             var invitation = await invitationService.CreateInvitationAsync(created.Id, created.Email);
-            string inviteUrl = Url.PageLink("Activate", null, new { token = invitation.Token }) ?? "/Membership/Activate";
+            string inviteUrl = ActivationUrlBuilder.Build(Url, invitation.Token, configuration);
             await accountService.SendInvitationEmailAsync(
                 created.Email,
                 $"{created.FirstName} {created.LastName}",
@@ -254,7 +256,7 @@ public class RegisterModel(
             foreach (var cm in createdMembers)
             {
                 var invitation = await invitationService.CreateInvitationAsync(cm.Id, cm.Email);
-                string inviteUrl = Url.PageLink("Activate", null, new { token = invitation.Token }) ?? "/Membership/Activate";
+                string inviteUrl = ActivationUrlBuilder.Build(Url, invitation.Token, configuration);
 
                 await accountService.SendInvitationEmailAsync(
                     cm.Email,

@@ -20,39 +20,39 @@
 }
 
 <form method="post" class="row g-3">
-    <input type="hidden" asp-for="Member.Id" />
-    <input type="hidden" asp-for="Member.ConcurrencyToken" />
+    <div asp-validation-summary="ModelOnly" class="text-danger col-12"></div>
+    <input type="hidden" asp-for="Input.Id" />
+    <input type="hidden" asp-for="Input.ConcurrencyToken" />
 
     <div class="col-12">
         <h5 class="border-bottom pb-2">Persönliche Daten</h5>
     </div>
 
     <div class="col-md-6">
-        <label asp-for="Member.FirstName" class="form-label"></label>
-        <input asp-for="Member.FirstName" class="form-control" />
-        <span asp-validation-for="Member.FirstName" class="text-danger"></span>
+        <label asp-for="Input.FirstName" class="form-label">Vorname</label>
+        <input asp-for="Input.FirstName" class="form-control" />
+        <span asp-validation-for="Input.FirstName" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.LastName" class="form-label"></label>
-        <input asp-for="Member.LastName" class="form-control" />
-        <span asp-validation-for="Member.LastName" class="text-danger"></span>
+        <label asp-for="Input.LastName" class="form-label">Nachname</label>
+        <input asp-for="Input.LastName" class="form-control" />
+        <span asp-validation-for="Input.LastName" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.Email" class="form-label"></label>
-        <input asp-for="Member.Email" class="form-control" readonly disabled />
+        <label class="form-label">E-Mail</label>
+        <input value="@Model.Member.Email" class="form-control" readonly disabled />
         <small class="text-muted">Die E-Mail-Adresse kann nicht geändert werden.</small>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.Phone" class="form-label"></label>
-        <input asp-for="Member.Phone" class="form-control" />
-        <span asp-validation-for="Member.Phone" class="text-danger"></span>
+        <label asp-for="Input.Phone" class="form-label">Telefon</label>
+        <input asp-for="Input.Phone" class="form-control" />
+        <span asp-validation-for="Input.Phone" class="text-danger"></span>
     </div>
     <div class="col-md-4">
         <label class="form-label">Geburtsdatum</label>
         <div class="form-control bg-light" style="cursor:not-allowed">
             @(Model.Member.BirthDate.Year > 1 ? Model.Member.BirthDate.ToString("dd.MM.yyyy") : "-")
         </div>
-        <input type="hidden" asp-for="Member.BirthDate" />
         <small class="text-muted">Das Geburtsdatum kann nicht geändert werden.</small>
     </div>
     <div class="col-md-4">
@@ -69,20 +69,24 @@
     </div>
 
     <div class="col-md-6">
-        <label asp-for="Member.Street" class="form-label"></label>
-        <input asp-for="Member.Street" class="form-control" />
+        <label asp-for="Input.Street" class="form-label">Straße</label>
+        <input asp-for="Input.Street" class="form-control" />
+        <span asp-validation-for="Input.Street" class="text-danger"></span>
     </div>
     <div class="col-md-3">
-        <label asp-for="Member.ZipCode" class="form-label"></label>
-        <input asp-for="Member.ZipCode" class="form-control" />
+        <label asp-for="Input.ZipCode" class="form-label">PLZ</label>
+        <input asp-for="Input.ZipCode" class="form-control" />
+        <span asp-validation-for="Input.ZipCode" class="text-danger"></span>
     </div>
     <div class="col-md-3">
-        <label asp-for="Member.City" class="form-label"></label>
-        <input asp-for="Member.City" class="form-control" />
+        <label asp-for="Input.City" class="form-label">Ort</label>
+        <input asp-for="Input.City" class="form-control" />
+        <span asp-validation-for="Input.City" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.Country" class="form-label"></label>
-        <input asp-for="Member.Country" class="form-control" />
+        <label asp-for="Input.Country" class="form-label">Land</label>
+        <input asp-for="Input.Country" class="form-control" />
+        <span asp-validation-for="Input.Country" class="text-danger"></span>
     </div>
 
     @if (Model.Member.FamilyGroup != null)
@@ -102,7 +106,7 @@
             <h5 class="border-bottom pb-2">Erziehungsberechtigter</h5>
         </div>
         <div class="col-12">
-            <label class="form-label"></label>
+            <label class="form-label">Erziehungsberechtigter</label>
             <input class="form-control" value="@Model.Member.GuardianMember.LastName, @Model.Member.GuardianMember.FirstName" readonly disabled />
         </div>
     }
@@ -111,8 +115,9 @@
         <h5 class="border-bottom pb-2">Sonstiges</h5>
     </div>
     <div class="col-12">
-        <label asp-for="Member.Notes" class="form-label">Notizen</label>
-        <textarea asp-for="Member.Notes" class="form-control" rows="3"></textarea>
+        <label asp-for="Input.Notes" class="form-label">Notizen</label>
+        <textarea asp-for="Input.Notes" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Input.Notes" class="text-danger"></span>
     </div>
 
     @if (Model.Member.Department != null)
