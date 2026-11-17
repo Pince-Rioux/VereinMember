@@ -1,4 +1,5 @@
 using VereinMember.Data;
+using VereinMember.Extensions;
 using VereinMember.Models;
 using VereinMember.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace VereinMember.Areas.Membership.Pages;
 
 [Authorize]
+[RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
 public class ProfileModel(
     IMemberService memberService,

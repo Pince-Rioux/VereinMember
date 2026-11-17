@@ -1,3 +1,4 @@
+using VereinMember.Tests.Fixtures;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -23,7 +24,7 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
 
     public AuditPurgeAndAccountHardeningTests()
     {
-        var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var key = TestEncryptionKey.Value;
         MembershipEncryption.Initialize(new VereinMember.Services.Encryption.AesEncryptionService(key));
 
         var dbName = $"HardeningTest_{Guid.NewGuid()}";
@@ -184,7 +185,7 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
     [Fact]
     public void AddVereinMember_DoesNotRegisterPurgeServiceByDefault()
     {
-        var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var key = TestEncryptionKey.Value;
         var services = new ServiceCollection();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -203,7 +204,7 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
     [Fact]
     public void AddVereinMember_RegistersPurgeServiceOnlyWhenBothModuleAndPurgeAreEnabled()
     {
-        var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var key = TestEncryptionKey.Value;
 
         var disabledModuleServices = new ServiceCollection();
         var disabledModuleConfig = new ConfigurationBuilder()

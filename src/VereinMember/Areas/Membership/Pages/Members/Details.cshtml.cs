@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace VereinMember.Areas.Membership.Pages.Members;
 
 [Authorize(Policy = AuthorizationPolicies.MemberView)]
+[RequireMembershipEnabled]
 public class DetailsModel(IMemberService memberService) : PageModel
 {
     public Member? Member { get; set; }

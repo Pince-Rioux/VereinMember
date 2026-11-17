@@ -1,27 +1,31 @@
-using VereinMember.Data;
+using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using VereinMember.Areas.Membership.Dtos;
 using VereinMember.Extensions;
 using VereinMember.Models;
 using VereinMember.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace VereinMember.Areas.Membership.Controllers;
 
 [ApiController]
 [Authorize]
+[RequireMembershipEnabled]
 [Area("Membership")]
 [Route("membership/api/members")]
 public class MembersController : ControllerBase
 {
     private readonly IMemberService _memberService;
-    private readonly MembershipDbContext _context;
+    private readonly IValidator<Member> _validator;
 
-    public MembersController(IMemberService memberService, MembershipDbContext context)
+    public MembersController(IMemberService memberService, IValidator<Member> validator)
     {
         _memberService = memberService;
-        _context = context;
+        _validator = validator;
     }
+
+    private bool CanViewInternalNotes() =>
+        User.IsInRole("Admin") || User.IsInRole("Editor");
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.MemberView)]
@@ -40,7 +44,10 @@ public class MembersController : ControllerBase
         var (items, totalCount) = await _memberService.SearchAsync(
             searchTerm, status, departmentId, feeCategory, page, pageSize);
 
-        return Ok(new { items, totalCount, page, pageSize });
+        var includeNotes = CanViewInternalNotes();
+        var dtos = items.Select(m => MemberResponseDto.FromMember(m, includeNotes)).ToList();
+
+        return Ok(new { items = dtos, totalCount, page, pageSize });
     }
 
     [HttpGet("{id}")]
@@ -51,17 +58,52 @@ public class MembersController : ControllerBase
         if (member == null)
             return NotFound();
 
-        return Ok(member);
+        return Ok(MemberResponseDto.FromMember(member, CanViewInternalNotes()));
     }
 
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.MemberWrite)]
-    public async Task<IActionResult> Create([FromBody] Member member)
+    public async Task<IActionResult> Create([FromBody] CreateMemberRequestDto request)
     {
+        var member = new Member
+        {
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            Phone = request.Phone,
+            BirthDate = request.BirthDate,
+            Street = request.Street,
+            City = request.City,
+            ZipCode = request.ZipCode,
+            Country = request.Country,
+            BankIban = request.BankIban,
+            BankBic = request.BankBic,
+            DepartmentId = request.DepartmentId,
+            MembershipFeeId = request.MembershipFeeId,
+            GuardianMemberId = request.GuardianMemberId,
+            FamilyGroupId = request.FamilyGroupId,
+            Notes = request.Notes,
+            Status = MemberStatus.Active
+        };
+
+        var validation = await _validator.ValidateAsync(member);
+        if (!validation.IsValid)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Validation error",
+                Status = 400,
+                Detail = string.Join("; ", validation.Errors.Select(e => e.ErrorMessage))
+            });
+        }
+
         try
         {
             var created = await _memberService.CreateAsync(member, User.Identity?.Name ?? "system");
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = created.Id },
+                MemberResponseDto.FromMember(created, CanViewInternalNotes()));
         }
         catch (InvalidOperationException ex)
         {
@@ -76,14 +118,45 @@ public class MembersController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = AuthorizationPolicies.MemberWrite)]
-    public async Task<IActionResult> Update(int id, [FromBody] Member member)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateMemberRequestDto request)
     {
-        member.Id = id;
+        var member = new Member
+        {
+            Id = id,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            Phone = request.Phone,
+            BirthDate = request.BirthDate,
+            Street = request.Street,
+            City = request.City,
+            ZipCode = request.ZipCode,
+            Country = request.Country,
+            BankIban = request.BankIban,
+            BankBic = request.BankBic,
+            DepartmentId = request.DepartmentId,
+            MembershipFeeId = request.MembershipFeeId,
+            GuardianMemberId = request.GuardianMemberId,
+            FamilyGroupId = request.FamilyGroupId,
+            Notes = request.Notes,
+            ConcurrencyToken = request.ConcurrencyToken
+        };
+
+        var validation = await _validator.ValidateAsync(member);
+        if (!validation.IsValid)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Validation error",
+                Status = 400,
+                Detail = string.Join("; ", validation.Errors.Select(e => e.ErrorMessage))
+            });
+        }
 
         try
         {
-            var updated = await _memberService.UpdateAsync(member);
-            return Ok(updated);
+            var updated = await _memberService.UpdateAsync(member, User.Identity?.Name ?? "system");
+            return Ok(MemberResponseDto.FromMember(updated, CanViewInternalNotes()));
         }
         catch (KeyNotFoundException)
         {
@@ -124,7 +197,7 @@ public class MembersController : ControllerBase
     }
 
     [HttpGet("{id}/export")]
-    [Authorize(Policy = AuthorizationPolicies.MemberView)]
+    [Authorize(Policy = AuthorizationPolicies.MemberWrite)]
     public async Task<IActionResult> Export(int id)
     {
         var member = await _memberService.GetByIdAsync(id);
@@ -148,9 +221,7 @@ public class MembersController : ControllerBase
                     zipCode = member.ZipCode,
                     country = member.Country
                 },
-                bankInfo = member.BankIban != null
-                    ? $"DE••••••••••••{member.BankIban[^4..]}"
-                    : null,
+                bankInfo = MemberResponseDto.MaskIban(member.BankIban),
                 membership = new
                 {
                     status = member.Status.ToString(),
@@ -173,7 +244,7 @@ public class MembersController : ControllerBase
                 createdAt = member.CreatedAt,
                 updatedAt = member.UpdatedAt
             },
-            dataRetentionPolicy = "Member data retained during membership + 3 years. See DSGVO_SECURITY.md"
+            dataRetentionPolicy = "Member data retained per club policy. See DSGVO_SECURITY.md"
         };
 
         return Ok(export);
@@ -208,7 +279,10 @@ public class MembersController : ControllerBase
     public async Task<IActionResult> GetGuardianCandidates()
     {
         var candidates = await _memberService.GetGuardianCandidatesAsync();
-        return Ok(candidates);
+        var dtos = candidates
+            .Select(c => new GuardianCandidateDto(c.Id, $"{c.LastName}, {c.FirstName}"))
+            .ToList();
+        return Ok(dtos);
     }
 
     [HttpGet("{id}/dependents")]
@@ -220,6 +294,9 @@ public class MembersController : ControllerBase
             return NotFound();
 
         var dependents = await _memberService.GetDependentsAsync(id);
-        return Ok(dependents);
+        var dtos = dependents
+            .Select(d => new DependentDto(d.Id, d.FirstName, d.LastName, d.BirthDate, d.Status.ToString()))
+            .ToList();
+        return Ok(dtos);
     }
 }

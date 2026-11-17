@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace VereinMember.Areas.Membership.Pages.Members;
 
 [Authorize(Policy = AuthorizationPolicies.MemberWrite)]
+[RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
 public class EditModel(
     IMemberService memberService,
@@ -77,7 +78,8 @@ public class EditModel(
 
         try
         {
-            var updated = await memberService.UpdateAsync(Member);
+            var performedBy = User.Identity?.Name ?? "system";
+            var updated = await memberService.UpdateAsync(Member, performedBy);
             TempData["Success"] = $"Member '{updated.FirstName} {updated.LastName}' updated successfully.";
             return RedirectToPage("Index");
         }

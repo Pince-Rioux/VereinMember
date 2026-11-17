@@ -25,7 +25,7 @@ public interface IMemberService
     /// </summary>
     Task<List<Member>> CreateFamilyAsync(Member mainMember, List<Member> familyMembers, string createdBy);
 
-    Task<Member> UpdateAsync(Member member);
+    Task<Member> UpdateAsync(Member member, string performedBy = "system");
 
     /// <summary>
     /// Updates only the fields a member is allowed to edit themselves:

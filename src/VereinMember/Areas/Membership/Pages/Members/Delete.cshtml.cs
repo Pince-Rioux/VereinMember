@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace VereinMember.Areas.Membership.Pages.Members;
 
 [Authorize(Policy = AuthorizationPolicies.MemberDelete)]
+[RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
 public class DeleteModel(IMemberService memberService) : PageModel
 {

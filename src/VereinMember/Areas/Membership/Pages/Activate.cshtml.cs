@@ -1,3 +1,4 @@
+using VereinMember.Extensions;
 using VereinMember.Models;
 using VereinMember.Services;
 using Microsoft.AspNetCore.Identity;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace VereinMember.Areas.Membership.Pages;
 
+[RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
 public class ActivateModel(
     IInvitationService invitationService,

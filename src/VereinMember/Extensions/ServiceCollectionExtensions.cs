@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
                 options.Password.RequireLowercase = true;
 
                 // Lockout settings
+                options.Lockout.AllowedForNewUsers = true;
                 options.Lockout.MaxFailedAccessAttempts = 5;
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })

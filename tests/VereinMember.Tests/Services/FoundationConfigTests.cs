@@ -1,3 +1,4 @@
+using VereinMember.Tests.Fixtures;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -131,7 +132,7 @@ public class FoundationConfigTests
     [Fact]
     public void AddMembershipEncryption_WithValidKey_RegistersAndInitializesEncryption()
     {
-        var key = CreateValidKey();
+        var key = TestEncryptionKey.Value;
         var services = new ServiceCollection();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>

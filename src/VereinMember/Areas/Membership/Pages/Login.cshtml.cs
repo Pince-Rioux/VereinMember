@@ -1,4 +1,6 @@
+using VereinMember.Extensions;
 using VereinMember.Models;
+using VereinMember.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -6,19 +8,24 @@ using Microsoft.Extensions.Logging;
 
 namespace VereinMember.Areas.Membership.Pages;
 
+[RequireMembershipEnabled]
+[ValidateAntiForgeryToken]
 public class LoginModel : PageModel
 {
     private readonly SignInManager<MembershipUser> _signInManager;
     private readonly UserManager<MembershipUser> _userManager;
+    private readonly IMemberService _memberService;
     private readonly ILogger<LoginModel> _logger;
 
     public LoginModel(
         SignInManager<MembershipUser> signInManager,
         UserManager<MembershipUser> userManager,
+        IMemberService memberService,
         ILogger<LoginModel> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _memberService = memberService;
         _logger = logger;
     }
 
@@ -27,23 +34,11 @@ public class LoginModel : PageModel
         ReturnUrl = returnUrl;
     }
 
-    private bool IsDisabled()
-    {
-        if (!VereinMember.Extensions.ServiceCollectionExtensions.Enabled)
-        {
-            ModelState.AddModelError(string.Empty, "Mitgliederbereich deaktiviert.");
-            return true;
-        }
-        return false;
-    }
-
     [BindProperty]
     public string? ReturnUrl { get; set; }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        if (IsDisabled()) return Page();
-
         var email = Request.Form["email"].ToString();
         var password = Request.Form["password"].ToString();
 
@@ -66,7 +61,17 @@ public class LoginModel : PageModel
             return Page();
         }
 
-        var result = await _signInManager.PasswordSignInAsync(user, password, true, lockoutOnFailure: false);
+        // Block deactivated or erased members even if an Identity user record exists
+        var linkedMember = await _memberService.GetByEmailAsync(email);
+        if (linkedMember != null && (linkedMember.Status == MemberStatus.Former || linkedMember.FirstName == "[erased]"))
+        {
+            _logger.LogWarning("Member login blocked for deactivated/erased member {Email}", email);
+            ModelState.Clear();
+            ModelState.AddModelError(string.Empty, "E-Mail und/oder Passwort sind falsch.");
+            return Page();
+        }
+
+        var result = await _signInManager.PasswordSignInAsync(user, password, true, lockoutOnFailure: true);
 
         if (!result.Succeeded)
         {
@@ -86,8 +91,6 @@ public class LoginModel : PageModel
 
         // Role-aware default landing page:
         // Admin → member management, everyone else → their own profile.
-        // Note: User.IsInRole() would reflect the previous request's principal,
-        // so we check the role via UserManager instead.
         if (await _userManager.IsInRoleAsync(user, "Admin"))
         {
             return Redirect("~/Membership/Members");
