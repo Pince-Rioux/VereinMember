@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using VereinMember.Data;
 using VereinMember.Models;
 using Microsoft.EntityFrameworkCore;
@@ -16,12 +17,13 @@ public class InvitationService(MembershipDbContext context) : IInvitationService
         // Cancel any pending invitations for this member
         await CancelPendingInvitationsAsync(memberId);
 
-        var token = GenerateToken();
+        var rawToken = GenerateToken();
+        var tokenHash = HashToken(rawToken);
 
         var invitation = new Invitation
         {
             MemberId = memberId,
-            Token = token,
+            Token = tokenHash,
             Email = email,
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow.AddDays(InvitationExpiryDays),
@@ -32,7 +34,21 @@ public class InvitationService(MembershipDbContext context) : IInvitationService
         context.Invitations.Add(invitation);
         await context.SaveChangesAsync();
 
-        return invitation;
+        // Detach the tracked entity so replacing Token with the one-time raw token
+        // for the caller does not overwrite the stored hash in the DbContext.
+        context.Entry(invitation).State = EntityState.Detached;
+
+        return new Invitation
+        {
+            Id = invitation.Id,
+            MemberId = invitation.MemberId,
+            Token = rawToken,
+            Email = invitation.Email,
+            CreatedAt = invitation.CreatedAt,
+            ExpiresAt = invitation.ExpiresAt,
+            CompletedAt = invitation.CompletedAt,
+            Attempts = invitation.Attempts
+        };
     }
 
     public async Task<Invitation?> ValidateTokenAsync(string token)
@@ -40,14 +56,15 @@ public class InvitationService(MembershipDbContext context) : IInvitationService
         if (string.IsNullOrWhiteSpace(token))
             return null;
 
+        var tokenHash = HashToken(token);
+
         var invitation = await context.Invitations
             .Include(i => i.Member)
-            .FirstOrDefaultAsync(i => i.Token == token);
+            .FirstOrDefaultAsync(i => i.Token == tokenHash);
 
         if (invitation == null)
             return null;
 
-        // Token found — check conditions
         if (invitation.CompletedAt.HasValue)
             return null;
 
@@ -55,22 +72,44 @@ public class InvitationService(MembershipDbContext context) : IInvitationService
             return null;
 
         if (invitation.Attempts >= MaxAttempts)
-        {
-            // Token is locked out due to too many failed attempts
             return null;
-        }
 
         return invitation;
     }
 
     public async Task CompleteInvitationAsync(Guid invitationId)
     {
-        var invitation = await context.Invitations.FindAsync(invitationId);
-        if (invitation == null)
-            return;
+        await TryCompleteInvitationAsync(invitationId);
+    }
 
-        invitation.CompletedAt = DateTime.UtcNow;
+    public async Task<bool> TryCompleteInvitationAsync(Guid invitationId)
+    {
+        var now = DateTime.UtcNow;
+
+        if (context.Database.IsRelational())
+        {
+            var affected = await context.Invitations
+                .Where(i => i.Id == invitationId
+                            && i.CompletedAt == null
+                            && i.ExpiresAt >= now
+                            && i.Attempts < MaxAttempts)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(i => i.CompletedAt, now));
+
+            return affected == 1;
+        }
+
+        var invitation = await context.Invitations.FindAsync(invitationId);
+        if (invitation == null
+            || invitation.CompletedAt.HasValue
+            || invitation.ExpiresAt < now
+            || invitation.Attempts >= MaxAttempts)
+        {
+            return false;
+        }
+
+        invitation.CompletedAt = now;
         await context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<List<Invitation>> GetPendingInvitationsAsync(string email)
@@ -90,7 +129,7 @@ public class InvitationService(MembershipDbContext context) : IInvitationService
 
         foreach (var inv in pending)
         {
-            inv.ExpiresAt = DateTime.UtcNow; // expire immediately
+            inv.ExpiresAt = DateTime.UtcNow.AddTicks(-1); // expire immediately
         }
 
         if (pending.Count > 0)
@@ -109,6 +148,13 @@ public class InvitationService(MembershipDbContext context) : IInvitationService
             invitation.Attempts++;
             await context.SaveChangesAsync();
         }
+    }
+
+    internal static string HashToken(string rawToken)
+    {
+        var bytes = Encoding.UTF8.GetBytes(rawToken);
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private static string GenerateToken()

@@ -27,14 +27,33 @@ public class DefaultMemberAccountService : IMemberAccountService
 
     public async Task<bool> SetPasswordAsync(string email, string password)
     {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user == null)
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            return false;
+
+        var existingUser = await _userManager.FindByEmailAsync(email);
+        var candidateUser = existingUser ?? new MembershipUser
         {
-            // Create Identity user for this email (first-time activation)
-            user = new MembershipUser();
-            user.Email = email;
-            user.UserName = email;
-            var createResult = await _userManager.CreateAsync(user);
+            Email = email,
+            UserName = email
+        };
+
+        // Validate password against all configured Identity password validators
+        // BEFORE creating a user or mutating an existing password.
+        foreach (var validator in _userManager.PasswordValidators)
+        {
+            var validationResult = await validator.ValidateAsync(_userManager, candidateUser, password);
+            if (!validationResult.Succeeded)
+            {
+                _logger.LogWarning(
+                    "SetPasswordAsync: password rejected for {Email}: {Errors}",
+                    email, string.Join(", ", validationResult.Errors.Select(e => e.Description)));
+                return false;
+            }
+        }
+
+        if (existingUser == null)
+        {
+            var createResult = await _userManager.CreateAsync(candidateUser);
             if (!createResult.Succeeded)
             {
                 _logger.LogError("SetPasswordAsync: failed to create Identity user for {Email}: {Errors}",
@@ -44,23 +63,21 @@ public class DefaultMemberAccountService : IMemberAccountService
             _logger.LogInformation("SetPasswordAsync: created Identity user for {Email}", email);
         }
 
-        // Remove password if already set, then add new one
-        if (await _userManager.HasPasswordAsync(user))
+        IdentityResult passwordResult;
+        if (await _userManager.HasPasswordAsync(candidateUser))
         {
-            var removeResult = await _userManager.RemovePasswordAsync(user);
-            if (!removeResult.Succeeded)
-            {
-                _logger.LogError("SetPasswordAsync: failed to remove old password for {Email}: {Errors}",
-                    email, string.Join(", ", removeResult.Errors.Select(e => e.Description)));
-                return false;
-            }
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(candidateUser);
+            passwordResult = await _userManager.ResetPasswordAsync(candidateUser, resetToken, password);
+        }
+        else
+        {
+            passwordResult = await _userManager.AddPasswordAsync(candidateUser, password);
         }
 
-        var addResult = await _userManager.AddPasswordAsync(user, password);
-        if (!addResult.Succeeded)
+        if (!passwordResult.Succeeded)
         {
             _logger.LogError("SetPasswordAsync: failed to set password for {Email}: {Errors}",
-                email, string.Join(", ", addResult.Errors.Select(e => e.Description)));
+                email, string.Join(", ", passwordResult.Errors.Select(e => e.Description)));
             return false;
         }
 
@@ -81,7 +98,7 @@ public class DefaultMemberAccountService : IMemberAccountService
         await _emailSender.SendAsync(email, subject, body);
 
         _logger.LogInformation(
-            "Invitation email sent to {Name} <{Email}>: {Url}",
-            memberName, email, inviteUrl);
+            "Invitation email sent to {Email} (activation link omitted from logs)",
+            email);
     }
 }

@@ -144,8 +144,9 @@ public sealed class InvitationServiceTests : IDisposable
         var member = await SeedMemberAsync();
         var invitation = await _service.CreateInvitationAsync(member.Id, member.Email);
 
-        // Manually expire it
-        invitation.ExpiresAt = DateTime.UtcNow.AddDays(-1);
+        // Manually expire the stored DB row
+        var stored = await _context.Invitations.FindAsync(invitation.Id);
+        stored!.ExpiresAt = DateTime.UtcNow.AddDays(-1);
         await _context.SaveChangesAsync();
 
         var result = await _service.ValidateTokenAsync(invitation.Token);
@@ -170,8 +171,9 @@ public sealed class InvitationServiceTests : IDisposable
         var member = await SeedMemberAsync();
         var invitation = await _service.CreateInvitationAsync(member.Id, member.Email);
 
-        // Simulate 5 failed attempts
-        invitation.Attempts = 5;
+        // Simulate 5 failed attempts on the stored DB row
+        var stored = await _context.Invitations.FindAsync(invitation.Id);
+        stored!.Attempts = 5;
         await _context.SaveChangesAsync();
 
         var result = await _service.ValidateTokenAsync(invitation.Token);
@@ -307,5 +309,42 @@ public sealed class InvitationServiceTests : IDisposable
         // 4. Token is now consumed
         var afterComplete = await _service.ValidateTokenAsync(invitation.Token);
         afterComplete.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateInvitation_StoresHashedTokenInDatabase_AndRejectsSubmittedHash()
+    {
+        var member = await SeedMemberAsync("hashed@example.com");
+
+        var invitation = await _service.CreateInvitationAsync(member.Id, member.Email);
+        var stored = await _context.Invitations.AsNoTracking().SingleAsync(i => i.Id == invitation.Id);
+
+        stored.Token.Should().NotBe(invitation.Token);
+        var expectedHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(invitation.Token))).ToLowerInvariant();
+        stored.Token.Should().Be(expectedHash);
+        stored.Token.Should().HaveLength(64); // SHA-256 hex
+
+        // Raw token validates; submitting the DB hash directly must NOT validate
+        (await _service.ValidateTokenAsync(invitation.Token)).Should().NotBeNull();
+        (await _service.ValidateTokenAsync(stored.Token)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryCompleteInvitation_SucceedsOnce_AndRejectsReplayOrExpired()
+    {
+        var member = await SeedMemberAsync("atomic@example.com");
+        var invitation = await _service.CreateInvitationAsync(member.Id, member.Email);
+
+        (await _service.TryCompleteInvitationAsync(invitation.Id)).Should().BeTrue();
+        (await _service.TryCompleteInvitationAsync(invitation.Id)).Should().BeFalse();
+
+        var expired = await _service.CreateInvitationAsync(member.Id, member.Email);
+        var stored = await _context.Invitations.FindAsync(expired.Id);
+        stored!.ExpiresAt = DateTime.UtcNow.AddMinutes(-1);
+        await _context.SaveChangesAsync();
+
+        (await _service.TryCompleteInvitationAsync(expired.Id)).Should().BeFalse();
     }
 }
