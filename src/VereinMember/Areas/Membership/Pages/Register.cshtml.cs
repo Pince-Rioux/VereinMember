@@ -129,13 +129,32 @@ public class RegisterModel(
             return Page();
         }
 
+        // For Youth registrations, capture and validate non-member guardian contact details
+        if (selectedFee.Category == FeeCategory.Youth && !Member.GuardianMemberId.HasValue)
+        {
+            Member.GuardianFirstName = string.IsNullOrWhiteSpace(GuardianFirstName) ? null : GuardianFirstName.Trim();
+            Member.GuardianLastName = string.IsNullOrWhiteSpace(GuardianLastName) ? null : GuardianLastName.Trim();
+            Member.GuardianEmail = string.IsNullOrWhiteSpace(GuardianEmail) ? null : GuardianEmail.Trim();
+            Member.GuardianPhone = string.IsNullOrWhiteSpace(GuardianPhone) ? null : GuardianPhone.Trim();
+
+            if (string.IsNullOrWhiteSpace(Member.GuardianFirstName))
+                ModelState.AddModelError(nameof(GuardianFirstName), "Vorname des Erziehungsberechtigten ist erforderlich.");
+            if (string.IsNullOrWhiteSpace(Member.GuardianLastName))
+                ModelState.AddModelError(nameof(GuardianLastName), "Nachname des Erziehungsberechtigten ist erforderlich.");
+            if (string.IsNullOrWhiteSpace(Member.GuardianEmail))
+                ModelState.AddModelError(nameof(GuardianEmail), "E-Mail des Erziehungsberechtigten ist erforderlich.");
+        }
+
         // Validate member
         var validationResult = await validator.ValidateAsync(Member);
-        if (!validationResult.IsValid)
+        if (!validationResult.IsValid || !ModelState.IsValid)
         {
             foreach (var error in validationResult.Errors)
             {
-                ModelState.AddModelError($"Member.{error.PropertyName}", error.ErrorMessage);
+                if (error.PropertyName == nameof(Member.GuardianEmail))
+                    ModelState.AddModelError(nameof(GuardianEmail), error.ErrorMessage);
+                else
+                    ModelState.AddModelError($"Member.{error.PropertyName}", error.ErrorMessage);
             }
             await LoadOptionsAsync();
             return Page();
@@ -205,18 +224,41 @@ public class RegisterModel(
 
         // Convert sub-members
         var subMembers = new List<Member>();
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(Member.Email))
+            seenEmails.Add(Member.Email.Trim());
+
         for (int i = 0; i < FamilyMembers.Count; i++)
         {
             var fm = FamilyMembers[i];
             if (string.IsNullOrWhiteSpace(fm.FirstName) && string.IsNullOrWhiteSpace(fm.LastName))
                 continue;
 
+            var subEmail = fm.Email?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(subEmail))
+            {
+                if (!seenEmails.Add(subEmail))
+                {
+                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Diese E-Mail-Adresse ist in der Familie doppelt.");
+                }
+                else if (await context.Members.AsNoTracking().AnyAsync(m => m.Email == subEmail))
+                {
+                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Diese E-Mail-Adresse wird bereits verwendet.");
+                }
+            }
+
+            if (fm.BirthDay.HasValue && fm.BirthMonth.HasValue && fm.BirthYear.HasValue && fm.BirthDate == DateTime.MinValue)
+            {
+                ModelState.AddModelError($"FamilyMembers[{i}].BirthDate", "Ungültiges Geburtsdatum.");
+            }
+
             var subMember = new Member
             {
                 FirstName = fm.FirstName.Trim(),
                 LastName = fm.LastName.Trim(),
-                Email = fm.Email.Trim(),
+                Email = subEmail,
                 BirthDate = fm.BirthDate,
+                JoinedAt = fm.JoinedAt == default ? DateTime.UtcNow : fm.JoinedAt,
                 MembershipFeeId = Member.MembershipFeeId,
                 Street = Member.Street,
                 City = Member.City,
@@ -308,8 +350,11 @@ public class RegisterModel(
         {
             get
             {
-                if (BirthDay.HasValue && BirthMonth.HasValue && BirthYear.HasValue)
-                    return new DateTime(BirthYear.Value, BirthMonth.Value, BirthDay.Value);
+                if (BirthDay is >= 1 and <= 31 && BirthMonth is >= 1 and <= 12 && BirthYear is >= 1900 and <= 2100)
+                {
+                    if (BirthDay.Value <= DateTime.DaysInMonth(BirthYear.Value, BirthMonth.Value))
+                        return new DateTime(BirthYear.Value, BirthMonth.Value, BirthDay.Value);
+                }
                 return DateTime.MinValue;
             }
         }

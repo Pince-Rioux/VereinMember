@@ -17,6 +17,7 @@ using VereinMember.Extensions;
 
 namespace VereinMember.Tests.Services;
 
+[Collection("StaticMembershipState")]
 public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
 {
     private readonly ServiceProvider _provider;
@@ -57,6 +58,7 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
 
     public void Dispose()
     {
+        ServiceCollectionExtensions.Enabled = true;
         _provider.Dispose();
     }
 

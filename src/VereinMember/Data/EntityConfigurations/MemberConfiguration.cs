@@ -92,6 +92,18 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
 
         builder.HasIndex(m => new { m.FirstName, m.LastName });
 
+        builder.Property(m => m.GuardianFirstName)
+            .HasMaxLength(100);
+
+        builder.Property(m => m.GuardianLastName)
+            .HasMaxLength(100);
+
+        builder.Property(m => m.GuardianEmail)
+            .HasMaxLength(200);
+
+        builder.Property(m => m.GuardianPhone)
+            .HasMaxLength(50);
+
         // Guardian self-reference (Youth to Adult)
         builder.HasOne(m => m.GuardianMember)
             .WithMany(m => m.DependentMembers)

@@ -156,7 +156,9 @@ public sealed record MemberResponseDto
             GuardianMemberId = member.GuardianMemberId,
             GuardianName = member.GuardianMember != null
                 ? $"{member.GuardianMember.FirstName} {member.GuardianMember.LastName}"
-                : null,
+                : (!string.IsNullOrWhiteSpace(member.GuardianFirstName) || !string.IsNullOrWhiteSpace(member.GuardianLastName)
+                    ? $"{member.GuardianFirstName} {member.GuardianLastName}".Trim()
+                    : null),
             FamilyGroupId = member.FamilyGroupId,
             FamilyGroupName = member.FamilyGroup?.Name,
             Notes = includeInternalNotes ? member.Notes : null,

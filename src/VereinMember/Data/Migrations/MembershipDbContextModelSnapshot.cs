@@ -346,6 +346,22 @@ namespace VereinMember.Data.Migrations
                     b.Property<int?>("GuardianMemberId")
                         .HasColumnType("int");
 
+                    b.Property<string>("GuardianEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("GuardianFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("GuardianLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("GuardianPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("datetime2");
 

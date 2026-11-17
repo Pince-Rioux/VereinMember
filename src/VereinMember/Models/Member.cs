@@ -76,6 +76,18 @@ public class Member
     [InverseProperty(nameof(GuardianMember))]
     public ICollection<Member> DependentMembers { get; set; } = new List<Member>();
 
+    [Display(Name = "Erziehungsberechtigter Vorname")]
+    public string? GuardianFirstName { get; set; }
+
+    [Display(Name = "Erziehungsberechtigter Nachname")]
+    public string? GuardianLastName { get; set; }
+
+    [Display(Name = "Erziehungsberechtigter E-Mail")]
+    public string? GuardianEmail { get; set; }
+
+    [Display(Name = "Erziehungsberechtigter Telefon")]
+    public string? GuardianPhone { get; set; }
+
     [Display(Name = "Familien-Gruppe")]
     public int? FamilyGroupId { get; set; }
     [ForeignKey(nameof(FamilyGroupId))]

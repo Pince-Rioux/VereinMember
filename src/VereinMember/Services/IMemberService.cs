@@ -51,4 +51,5 @@ public interface IMemberService
     Task<FamilyGroup> AddMemberToFamilyGroupAsync(int memberId, int familyGroupId);
     Task<FamilyGroup> RemoveMemberFromFamilyGroupAsync(int memberId);
     Task<bool> DeleteFamilyGroupAsync(int id);
+    Task<bool> DissolveFamilyGroupAsync(int id, string performedBy);
 }

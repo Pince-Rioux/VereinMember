@@ -26,6 +26,7 @@ using VereinMember.Services.Validators;
 
 namespace VereinMember.Tests.Services;
 
+[Collection("StaticMembershipState")]
 public sealed class ApiBoundaryAndUpdateHardeningTests : IDisposable
 {
     private readonly ServiceProvider _provider;
