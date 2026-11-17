@@ -96,8 +96,12 @@ public static class ServiceCollectionExtensions
         // Initialize static encryption reference for EF Core value converters
         MembershipEncryption.Initialize(encryptionService);
 
-        // Background service that purges expired personal data every 24 hours
-        services.AddHostedService<PurgeService>();
+        // Background purge service is strictly opt-in (disabled unless both module and MembershipPurge:Enabled are true)
+        services.Configure<PurgeOptions>(configuration.GetSection("MembershipPurge"));
+        if (Enabled && configuration.GetValue<bool>("MembershipPurge:Enabled"))
+        {
+            services.AddHostedService<PurgeService>();
+        }
 
         services.AddMembershipAuthorization();
 

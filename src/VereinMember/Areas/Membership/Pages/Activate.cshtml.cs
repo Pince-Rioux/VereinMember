@@ -1,6 +1,6 @@
 using VereinMember.Models;
-using Microsoft.AspNetCore.Identity;
 using VereinMember.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -10,7 +10,7 @@ namespace VereinMember.Areas.Membership.Pages;
 public class ActivateModel(
     IInvitationService invitationService,
     IMemberAccountService accountService,
-    Microsoft.AspNetCore.Identity.UserManager<MembershipUser> userManager) : PageModel
+    UserManager<MembershipUser> userManager) : PageModel
 {
     public string Token { get; set; } = string.Empty;
     public string MemberFirstName { get; set; } = string.Empty;
@@ -64,42 +64,51 @@ public class ActivateModel(
         if (password.Length < 8)
         {
             ModelState.AddModelError(string.Empty, "Das Passwort muss mindestens 8 Zeichen lang sein.");
+            await invitationService.RecordFailedAttemptAsync(invitation.Id);
             return Page();
         }
 
         if (password != confirmPassword)
         {
             ModelState.AddModelError(string.Empty, "Die Passwörter stimmen nicht überein.");
+            await invitationService.RecordFailedAttemptAsync(invitation.Id);
             return Page();
         }
 
-        // Ensure Identity user exists, then set password
-        var identityUser = await userManager.FindByEmailAsync(invitation.Member.Email);
-        if (identityUser == null)
+        // Pre-validate against Identity's password policy before consuming the invitation
+        var existingUser = await userManager.FindByEmailAsync(invitation.Member.Email);
+        var candidateUser = existingUser ?? new MembershipUser
         {
-            identityUser = new MembershipUser();
-            identityUser.Email = invitation.Member.Email;
-            identityUser.UserName = invitation.Member.Email;
-            var createResult = await userManager.CreateAsync(identityUser);
-            if (!createResult.Succeeded)
+            Email = invitation.Member.Email,
+            UserName = invitation.Member.Email
+        };
+
+        foreach (var validator in userManager.PasswordValidators)
+        {
+            var validation = await validator.ValidateAsync(userManager, candidateUser, password);
+            if (!validation.Succeeded)
             {
-                var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
-                ModelState.AddModelError(string.Empty, "Identity-User konnte nicht erstellt werden: " + errors);
+                foreach (var err in validation.Errors)
+                    ModelState.AddModelError(string.Empty, err.Description);
+                await invitationService.RecordFailedAttemptAsync(invitation.Id);
                 return Page();
             }
         }
 
-        // Set password via host Identity
+        // Atomically consume the invitation before changing credentials so concurrent replays cannot race
+        var consumed = await invitationService.TryCompleteInvitationAsync(invitation.Id);
+        if (!consumed)
+        {
+            IsInvalid = true;
+            return Page();
+        }
+
         var success = await accountService.SetPasswordAsync(invitation.Member.Email, password);
         if (!success)
         {
             ModelState.AddModelError(string.Empty, "Passwort konnte nicht gesetzt werden. Bitte versuchen Sie es später erneut.");
-            _ = invitationService.RecordFailedAttemptAsync(invitation.Id);
             return Page();
         }
-
-        // Mark invitation as completed
-        await invitationService.CompleteInvitationAsync(invitation.Id);
 
         IsCompleted = true;
         return Page();

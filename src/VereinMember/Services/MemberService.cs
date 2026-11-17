@@ -138,7 +138,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
 
         await auditService.LogAsync(
             nameof(Member), member.Id, "Created",
-            null, member.ToJson(),
+            null, member.ToAuditJson(),
             nameof(Member), createdBy);
 
         return member;
@@ -192,7 +192,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         {
             await auditService.LogAsync(
                 nameof(Member), member.Id, "Created",
-                null, member.ToJson(),
+                null, member.ToAuditJson(),
                 nameof(Member), createdBy);
         }
 
@@ -243,7 +243,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
                 break;
         }
 
-        var oldValues = existing.ToJson();
+        var oldValues = existing.ToAuditJson();
         member.UpdatedAt = DateTime.UtcNow;
 
         context.Members.Update(member);
@@ -259,7 +259,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
 
         await auditService.LogAsync(
             nameof(Member), member.Id, "Updated",
-            oldValues, member.ToJson(),
+            oldValues, member.ToAuditJson(),
             string.Empty,
             member.CreatedBy);
 
@@ -273,7 +273,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             .FirstOrDefaultAsync(m => m.Id == id)
             ?? throw new KeyNotFoundException($"Member with Id {id} not found.");
 
-        var oldValues = existing.ToJson();
+        var oldValues = existing.ToAuditJson();
 
         // Only allow editing these fields
         existing.FirstName = updated.FirstName;
@@ -317,7 +317,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
 
         await auditService.LogAsync(
             nameof(Member), existing.Id, "ProfileUpdated",
-            oldValues, existing.ToJson(),
+            oldValues, existing.ToAuditJson(),
             "FirstName,LastName,Phone,Street,City,ZipCode,Country,Notes",
             performedBy);
 
@@ -346,7 +346,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         if (dependents)
             throw new InvalidOperationException("Member cannot be deactivated because they are guardian for active Youth members. Re-assign first.");
 
-        var oldValues = member.ToJson();
+        var oldValues = member.ToAuditJson();
         member.LeftAt = DateTime.UtcNow;
         member.Status = MemberStatus.Former;
         member.UpdatedAt = DateTime.UtcNow;
@@ -355,7 +355,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
 
         await auditService.LogAsync(
             nameof(Member), member.Id, "SoftDeleted",
-            oldValues, member.ToJson(),
+            oldValues, member.ToAuditJson(),
             nameof(Member.LeftAt) + "," + nameof(Member.Status),
             performedBy);
 
@@ -397,9 +397,25 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         var member = await context.Members.FindAsync(id)
             ?? throw new KeyNotFoundException($"Member {id} not found.");
 
-        var oldValues = member.ToJson();
+        var originalEmail = member.Email;
 
-        // Null out personal data (right to erasure keeps anonymous audit reference)
+        // Remove invitations and Identity account before overwriting email
+        var invitations = await context.Invitations
+            .Where(i => i.MemberId == member.Id)
+            .ToListAsync();
+        if (invitations.Count > 0)
+            context.Invitations.RemoveRange(invitations);
+
+        if (!string.IsNullOrWhiteSpace(originalEmail))
+        {
+            var identityUsers = await context.Users
+                .Where(u => u.Email == originalEmail)
+                .ToListAsync();
+            if (identityUsers.Count > 0)
+                context.Users.RemoveRange(identityUsers);
+        }
+
+        // Null out personal data (right to erasure keeps anonymous audit reference without PII)
         member.FirstName = "[erased]";
         member.LastName = "[erased]";
         member.Email = $"[erased-{member.Id}]@verein.de";
@@ -411,6 +427,8 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         member.Country = null;
         member.BankIban = null;
         member.BankBic = null;
+        member.PrivacyConsentedAt = null;
+        member.PrivacyConsentIp = null;
         member.Notes = null;
         member.GuardianMemberId = null;
         member.FamilyGroupId = null;
@@ -423,7 +441,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
 
         await auditService.LogAsync(
             nameof(Member), member.Id, "Erasure",
-            oldValues, member.ToJson(),
+            null, null,
             nameof(Member), performedBy);
     }
 
@@ -520,12 +538,39 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
 
 internal static class MemberExtensions
 {
-    public static string ToJson(this Member member)
+    public static string ToAuditJson(this Member member)
     {
-        return System.Text.Json.JsonSerializer.Serialize(member, new System.Text.Json.JsonSerializerOptions
+        var snapshot = new
         {
-            WriteIndented = false,
-            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            member.Id,
+            member.FirstName,
+            member.LastName,
+            member.Email,
+            member.Phone,
+            member.BirthDate,
+            member.Street,
+            member.City,
+            member.ZipCode,
+            member.Country,
+            HasBankIban = !string.IsNullOrEmpty(member.BankIban),
+            HasBankBic = !string.IsNullOrEmpty(member.BankBic),
+            member.PrivacyConsentedAt,
+            member.JoinedAt,
+            member.LeftAt,
+            member.Status,
+            member.DepartmentId,
+            member.MembershipFeeId,
+            member.Notes,
+            member.CreatedAt,
+            member.UpdatedAt,
+            member.CreatedBy,
+            member.GuardianMemberId,
+            member.FamilyGroupId
+        };
+
+        return System.Text.Json.JsonSerializer.Serialize(snapshot, new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = false
         });
     }
 }

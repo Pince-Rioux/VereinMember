@@ -33,6 +33,13 @@ public interface IInvitationService
     Task CompleteInvitationAsync(Guid invitationId);
 
     /// <summary>
+    /// Atomically marks an active, unexpired, non-locked invitation as completed.
+    /// Returns true if this call consumed the invitation; false if it was already
+    /// completed, expired, locked, or missing.
+    /// </summary>
+    Task<bool> TryCompleteInvitationAsync(Guid invitationId);
+
+    /// <summary>
     /// Returns all pending (unexpired, not completed) invitations for a given email.
     /// </summary>
     Task<List<Invitation>> GetPendingInvitationsAsync(string email);
