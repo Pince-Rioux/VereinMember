@@ -111,6 +111,7 @@
 
         <div id="familyMembersContainer">
             <div id="familyMemberTemplate" class="family-member-row row g-2 mb-2 p-2 border rounded" style="display:none">
+                <input type="hidden" name="FamilyMembers.Index" value="INDEX" />
                 <div class="col-md-3">
                     <input name="FamilyMembers[INDEX].FirstName" class="form-control form-control-sm" placeholder="Vorname" />
                 </div>
@@ -144,6 +145,9 @@
                 </div>
                 <div class="col-md-1">
                     <button type="button" class="btn btn-sm btn-outline-danger remove-family-row" title="Entfernen">&times;</button>
+                </div>
+                <div class="col-12">
+                    <span class="text-danger small family-row-errors" style="display:none"></span>
                 </div>
             </div>
         </div>
@@ -194,8 +198,8 @@
     @* Datenschutz *@
     <div class="col-12 mt-3">
         <div class="form-check">
-            <input id="PrivacyConsented" name="PrivacyConsented" type="checkbox" class="form-check-input" value="true" />
-            <label class="form-check-label" for="PrivacyConsented">
+            <input asp-for="PrivacyConsented" class="form-check-input" />
+            <label class="form-check-label" asp-for="PrivacyConsented">
                 Ich habe die <a href="/datenschutz" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen und stimme zu.
             </label>
             <span asp-validation-for="PrivacyConsented" class="text-danger"></span>
@@ -227,11 +231,12 @@
 
             function toggleSections() {
                 const category = getSelectedFeeCategory();
-                guardianSection.style.display = (category === '1') ? 'block' : 'none';
-                familySection.style.display = (category === '2') ? 'block' : 'none';
+                guardianSection.style.display = (category === '1' || category === 'Youth') ? 'block' : 'none';
+                familySection.style.display = (category === '2' || category === 'Family') ? 'block' : 'none';
             }
 
-            function addFamilyMemberRow() {
+            function addFamilyMemberRow(data) {
+                data = data || {};
                 const clone = template.cloneNode(true);
                 clone.style.display = 'flex';
                 clone.removeAttribute('id');
@@ -242,7 +247,25 @@
                     if (name) {
                         el.setAttribute('name', name.replace('INDEX', index));
                     }
+                    if (el.getAttribute('name') === 'FamilyMembers.Index') {
+                        el.value = index;
+                    }
                 });
+
+                if (data.firstName) clone.querySelector('[name$=".FirstName"]').value = data.firstName;
+                if (data.lastName) clone.querySelector('[name$=".LastName"]').value = data.lastName;
+                if (data.email) clone.querySelector('[name$=".Email"]').value = data.email;
+                if (data.birthDay) clone.querySelector('[name$=".BirthDay"]').value = String(data.birthDay);
+                if (data.birthMonth) clone.querySelector('[name$=".BirthMonth"]').value = String(data.birthMonth);
+                if (data.birthYear) clone.querySelector('[name$=".BirthYear"]').value = String(data.birthYear);
+
+                if (data.errors && data.errors.length > 0) {
+                    const errorSpan = clone.querySelector('.family-row-errors');
+                    if (errorSpan) {
+                        errorSpan.style.display = 'block';
+                        errorSpan.textContent = data.errors.join(' ');
+                    }
+                }
 
                 clone.querySelector('.remove-family-row').addEventListener('click', function () {
                     clone.remove();
@@ -251,8 +274,33 @@
                 familyContainer.appendChild(clone);
             }
 
+            @{
+                var existingFamilyRows = new List<object>();
+                for (int i = 0; i < Model.FamilyMembers.Count; i++)
+                {
+                    var fm = Model.FamilyMembers[i];
+                    var prefix = $"FamilyMembers[{i}].";
+                    var rowErrors = ViewData.ModelState
+                        .Where(kvp => kvp.Key.StartsWith(prefix, StringComparison.Ordinal) && kvp.Value?.Errors.Count > 0)
+                        .SelectMany(kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage))
+                        .ToList();
+                    existingFamilyRows.Add(new
+                    {
+                        firstName = fm.FirstName,
+                        lastName = fm.LastName,
+                        email = fm.Email,
+                        birthDay = fm.BirthDay,
+                        birthMonth = fm.BirthMonth,
+                        birthYear = fm.BirthYear,
+                        errors = rowErrors
+                    });
+                }
+            }
+            const initialFamilyRows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(existingFamilyRows));
+            initialFamilyRows.forEach(addFamilyMemberRow);
+
             feeSelect.addEventListener('change', toggleSections);
-            addBtn.addEventListener('click', addFamilyMemberRow);
+            addBtn.addEventListener('click', function () { addFamilyMemberRow({}); });
             toggleSections();
         });
     </script>
