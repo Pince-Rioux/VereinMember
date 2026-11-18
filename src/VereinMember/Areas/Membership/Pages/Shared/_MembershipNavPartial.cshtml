@@ -20,8 +20,10 @@
             <strong class="ms-1">@displayName</strong>
         </div>
         <div>
-            <a asp-page="/Members/Index" class="btn btn-sm btn-outline-secondary me-1">Mitglieder</a>
-            <a asp-page="/Profile" class="btn btn-sm btn-outline-primary me-1">Profil</a>
+            @if (!string.Equals(ViewContext.RouteData.Values["page"] as string, "/Profile", StringComparison.OrdinalIgnoreCase))
+            {
+                <a asp-page="/Profile" class="btn btn-sm btn-outline-primary me-1">Profil</a>
+            }
             <a asp-page="/Logout" class="btn btn-sm btn-outline-danger">Abmelden</a>
         </div>
     </div>

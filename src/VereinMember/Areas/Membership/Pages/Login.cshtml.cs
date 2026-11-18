@@ -90,10 +90,10 @@ public class LoginModel : PageModel
         }
 
         // Role-aware default landing page:
-        // Admin → member management, everyone else → their own profile.
+        // Admin → administration, everyone else → their own profile.
         if (await _userManager.IsInRoleAsync(user, "Admin"))
         {
-            return Redirect("~/Membership/Members");
+            return RedirectToPage("/Admin/Index", new { area = "Membership" });
         }
 
         return Redirect("~/Membership/Profile");

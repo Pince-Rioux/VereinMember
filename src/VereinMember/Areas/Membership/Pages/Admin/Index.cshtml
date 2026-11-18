@@ -1,0 +1,10 @@
+@page "/Membership/Admin"
+@model VereinMember.Areas.Membership.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Administration";
+}
+
+<partial name="_MembershipNavPartial" />
+
+<h1>Administration</h1>
+<a asp-area="Membership" asp-page="/Members/Index" class="btn btn-primary">Mitglieder</a>
