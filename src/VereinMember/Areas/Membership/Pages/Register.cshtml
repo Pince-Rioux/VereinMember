@@ -8,7 +8,22 @@
 <p class="text-muted">Registrieren Sie sich als Mitglied des Volleyballclub Neusäß e. V. Sie erhalten anschließend eine E-Mail mit einem Link zur Bestätigung und Passwort-Vergabe.</p>
 
 <form method="post" class="row g-3">
-    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    @if (!ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>Bitte prüfen Sie Ihre Eingaben:</strong>
+            <ul class="mb-0">
+                @foreach (var error in ModelState.Values
+                    .SelectMany(entry => entry.Errors)
+                    .Select(entry => entry.ErrorMessage)
+                    .Where(message => !string.IsNullOrWhiteSpace(message))
+                    .Distinct())
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
 
     <div class="col-12">
         <h5 class="border-bottom pb-2">Persönliche Daten</h5>
@@ -111,6 +126,7 @@
 
         <div id="familyMembersContainer">
             <div id="familyMemberTemplate" class="family-member-row row g-2 mb-2 p-2 border rounded" style="display:none">
+                @* INDEX is replaced when JavaScript adds a real family row. *@
                 <input type="hidden" name="FamilyMembers.Index" value="INDEX" />
                 <div class="col-md-3">
                     <input name="FamilyMembers[INDEX].FirstName" class="form-control form-control-sm" placeholder="Vorname" />
@@ -181,11 +197,11 @@
 
     @* Zahlungsinformationen *@
     <div class="col-12 mt-3">
-        <h5 class="border-bottom pb-2">Zahlungsinformationen (optional)</h5>
+        <h5 class="border-bottom pb-2">Zahlungsinformationen</h5>
     </div>
     <div class="col-md-6">
         <label asp-for="Member.BankIban" class="form-label">IBAN</label>
-        <input asp-for="Member.BankIban" class="form-control" placeholder="DE00 0000 0000 0000 0000 00" />
+        <input asp-for="Member.BankIban" class="form-control" placeholder="DE00 0000 0000 0000 0000 00" required />
         <span asp-validation-for="Member.BankIban" class="text-danger"></span>
     </div>
     <div class="col-md-4">
@@ -195,15 +211,46 @@
         <span asp-validation-for="Member.BankBic" class="text-danger"></span>
     </div>
 
-    @* Datenschutz *@
+    @* Keep the displayed legal texts in sync with the text versions in RegisterModel. *@
     <div class="col-12 mt-3">
+        <h5 class="border-bottom pb-2">Einwilligung und Mitgliedschaft</h5>
+        <p class="text-muted">
+            Bei Minderjährigen müssen die Erklärungen von einer erziehungsberechtigten Person abgegeben werden.
+            Bitte lesen Sie auch unsere <a href="/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a>.
+        </p>
         <div class="form-check">
-            <input asp-for="PrivacyConsented" class="form-check-input" />
+            <input asp-for="PrivacyConsented" class="form-check-input" required />
             <label class="form-check-label" asp-for="PrivacyConsented">
-                Ich habe die <a href="/datenschutz" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen und stimme zu.
+                Ich bin widerruflich damit einverstanden, dass alle von mir angegebenen persönlichen und sachlichen
+                Daten vom VC Neusäß elektronisch erhoben, verarbeitet, genutzt und an Mitglieder des Vereins
+                weitergegeben werden dürfen.
+                Die Mitgliedschaft beginnt mit der Annahme des Antrags durch den Vorstand. Sie kann zum Ende eines
+                Kalenderjahres beendet werden und ist dem Verein schriftlich unter Einhaltung einer Frist von 4 Wochen
+                mitzuteilen. Der Mitgliedsbeitrag ist bis zum 31.01. des laufenden Jahres oder bei Eintritt nach diesem
+                Datum sofort mittels SEPA-Lastschriftmandat zu entrichten.
             </label>
-            <span asp-validation-for="PrivacyConsented" class="text-danger"></span>
+            <span asp-validation-for="PrivacyConsented" class="text-danger d-block"></span>
         </div>
+    </div>
+
+    <div class="col-12 mt-3">
+        <h5 class="border-bottom pb-2">SEPA-Lastschriftmandat</h5>
+        <div class="form-check">
+            <input asp-for="SepaMandateConsented" class="form-check-input" required />
+            <label class="form-check-label" asp-for="SepaMandateConsented">
+                Hiermit ermächtige ich den VC Neusäß e.V. widerruflich, den satzungsmäßigen
+                Mitgliedsbeitrag wiederkehrend zu Lasten meines nachstehenden Kontos mittels
+                Lastschrift einzuziehen. Zugleich weise ich mein Kreditinstitut an, die auf mein Konto
+                gezogenen Lastschriften einzulösen.
+            </label>
+            <span asp-validation-for="SepaMandateConsented" class="text-danger d-block"></span>
+        </div>
+        <p class="mt-2 mb-0">
+            <strong>Hinweis:</strong><br />
+            Ich kann innerhalb von acht Wochen, beginnend mit dem Belastungsdatum, die
+            Erstattung des belasteten Betrags verlangen. Es gelten dabei die mit meinem
+            Kreditinstitut vereinbarten Bedingungen.
+        </p>
     </div>
 
     <div class="col-12 mt-4">
@@ -222,6 +269,9 @@
             const template = document.getElementById('familyMemberTemplate');
             const addBtn = document.getElementById('addFamilyMemberBtn');
             let familyMemberIndex = 0;
+
+            // A template is not a family member and must never be submitted.
+            template.querySelectorAll('input, select').forEach(el => { el.disabled = true; });
 
             function getSelectedFeeCategory() {
                 const selectedOption = feeSelect.options[feeSelect.selectedIndex];
@@ -243,6 +293,7 @@
 
                 const index = familyMemberIndex++;
                 clone.querySelectorAll('input, select').forEach(el => {
+                    el.disabled = false;
                     const name = el.getAttribute('name');
                     if (name) {
                         el.setAttribute('name', name.replace('INDEX', index));

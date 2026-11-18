@@ -59,6 +59,15 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
                 v => v == null ? null : MembershipEncryption.Current.Encrypt(v),
                 v => v == null ? null : MembershipEncryption.Current.Decrypt(v));
 
+        builder.Property(m => m.PrivacyConsentTextVersion)
+            .HasMaxLength(32);
+
+        builder.Property(m => m.PrivacyConsentIp)
+            .HasMaxLength(45);
+
+        builder.Property(m => m.SepaMandateTextVersion)
+            .HasMaxLength(32);
+
         builder.Property(m => m.Status)
             .IsRequired()
             .HasMaxLength(20)

@@ -38,11 +38,20 @@ public class Member
     public string? BankIban { get; set; }
     public string? BankBic { get; set; }
 
-    [Display(Name = "Datenschutz zugestimmt am")]
+    [Display(Name = "Einwilligung und Mitgliedschaft bestätigt am")]
     public DateTime? PrivacyConsentedAt { get; set; }
 
-    [Display(Name = "Datenschutz zugestimmt von IP")]
+    [Display(Name = "Textversion Einwilligung und Mitgliedschaft")]
+    public string? PrivacyConsentTextVersion { get; set; }
+
+    [Display(Name = "Einwilligung bestätigt von IP")]
     public string? PrivacyConsentIp { get; set; }
+
+    [Display(Name = "SEPA-Lastschriftmandat erteilt am")]
+    public DateTime? SepaMandateConsentedAt { get; set; }
+
+    [Display(Name = "Textversion SEPA-Lastschriftmandat")]
+    public string? SepaMandateTextVersion { get; set; }
 
     [Display(Name = "Beigetreten am")]
     public DateTime JoinedAt { get; set; }

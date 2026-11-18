@@ -101,6 +101,7 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             BirthMonth = 8,
             BirthYear = 2014,
             PrivacyConsented = true,
+            SepaMandateConsented = true,
             GuardianFirstName = "Claudia",
             GuardianLastName = "Eltern",
             GuardianEmail = "claudia.eltern@example.com",
@@ -110,6 +111,7 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
                 FirstName = "Tim",
                 LastName = "Eltern",
                 Email = "tim.eltern@example.com",
+                BankIban = "DE89370400440532013000",
                 MembershipFeeId = youthFee.Id
             }
         };
@@ -124,6 +126,10 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         saved.GuardianLastName.Should().Be("Eltern");
         saved.GuardianEmail.Should().Be("claudia.eltern@example.com");
         saved.GuardianPhone.Should().Be("+49171000111");
+        saved.PrivacyConsentedAt.Should().NotBeNull();
+        saved.PrivacyConsentTextVersion.Should().Be(RegisterModel.MembershipDeclarationVersion);
+        saved.SepaMandateConsentedAt.Should().Be(saved.PrivacyConsentedAt);
+        saved.SepaMandateTextVersion.Should().Be(RegisterModel.SepaMandateVersion);
 
         accountMock.Verify(a => a.SendInvitationEmailAsync(
             "tim.eltern@example.com", "Tim Eltern", It.IsAny<string>()), Times.Once);
@@ -159,6 +165,7 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             BirthMonth = 8,
             BirthYear = 2014,
             PrivacyConsented = true,
+            SepaMandateConsented = true,
             Member = new Member
             {
                 FirstName = "Tim",
@@ -236,6 +243,7 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             BirthMonth = 3,
             BirthYear = 1985,
             PrivacyConsented = true,
+            SepaMandateConsented = true,
             Member = new Member
             {
                 FirstName = "Max",

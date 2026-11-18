@@ -530,7 +530,10 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         member.BankIban = null;
         member.BankBic = null;
         member.PrivacyConsentedAt = null;
+        member.PrivacyConsentTextVersion = null;
         member.PrivacyConsentIp = null;
+        member.SepaMandateConsentedAt = null;
+        member.SepaMandateTextVersion = null;
         member.Notes = null;
         member.GuardianMemberId = null;
         ClearNonMemberGuardian(member);
@@ -701,6 +704,9 @@ internal static class MemberExtensions
             HasBankIban = !string.IsNullOrEmpty(member.BankIban),
             HasBankBic = !string.IsNullOrEmpty(member.BankBic),
             member.PrivacyConsentedAt,
+            member.PrivacyConsentTextVersion,
+            member.SepaMandateConsentedAt,
+            member.SepaMandateTextVersion,
             member.JoinedAt,
             member.LeftAt,
             member.Status,
