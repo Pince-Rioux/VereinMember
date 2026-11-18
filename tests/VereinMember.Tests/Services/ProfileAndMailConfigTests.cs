@@ -228,4 +228,37 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MembershipMail:Smtp:Server*");
     }
+
+    [Fact]
+    public async Task MembersIndex_PreservesSelectedFilters_UsesGermanLabels_AndFiltersByFeeCategory()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var dept = new Department { Name = "Herren" };
+        var adultFee = new MembershipFee { Name = "Mitglied", Amount = 80m, Interval = FeeInterval.Yearly, Category = FeeCategory.Adult };
+        var youthFee = new MembershipFee { Name = "Jugend", Amount = 60m, Interval = FeeInterval.Yearly, Category = FeeCategory.Youth };
+        context.Departments.Add(dept);
+        context.MembershipFees.AddRange(adultFee, youthFee);
+        await context.SaveChangesAsync();
+
+        context.Members.AddRange(
+            new Member { FirstName = "A", LastName = "Adult", Email = "a@ex.de", BirthDate = new DateTime(1990, 1, 1), MembershipFeeId = adultFee.Id, DepartmentId = dept.Id, Status = MemberStatus.Active },
+            new Member { FirstName = "Y", LastName = "Youth", Email = "y@ex.de", BirthDate = new DateTime(2014, 1, 1), MembershipFeeId = youthFee.Id, DepartmentId = dept.Id, Status = MemberStatus.Active });
+        await context.SaveChangesAsync();
+
+        var indexModel = new VereinMember.Areas.Membership.Pages.Members.IndexModel(memberService, context)
+        {
+            Status = "Active",
+            DepartmentId = dept.Id,
+            FeeCategory = "Youth"
+        };
+
+        await indexModel.OnGetAsync();
+
+        indexModel.Members.Should().ContainSingle(m => m.Email == "y@ex.de");
+        indexModel.StatusOptions.Single(o => o.Value == "Active").Should().Match<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>(o => o.Selected && o.Text == "Aktiv");
+        indexModel.DepartmentOptions.Single(o => o.Value == dept.Id.ToString()).Selected.Should().BeTrue();
+        indexModel.FeeCategoryOptions.Single(o => o.Value == "Youth").Should().Match<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>(o => o.Selected && o.Text == "Jugend");
+    }
 }

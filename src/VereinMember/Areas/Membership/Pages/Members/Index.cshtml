@@ -10,20 +10,20 @@
 
 <form method="get" class="row g-3 mb-3">
     <div class="col-md-3">
-        <input type="text" name="searchTerm" class="form-control" placeholder="Suchen..." value="@Model.SearchTerm" />
+        <input asp-for="SearchTerm" class="form-control" placeholder="Suchen..." />
     </div>
     <div class="col-md-2">
-        <select name="status" class="form-select" asp-items="Model.StatusOptions">
+        <select asp-for="Status" class="form-select" asp-items="Model.StatusOptions">
             <option value="">Alle Status</option>
         </select>
     </div>
     <div class="col-md-2">
-        <select name="departmentId" class="form-select" asp-items="Model.DepartmentOptions">
+        <select asp-for="DepartmentId" class="form-select" asp-items="Model.DepartmentOptions">
             <option value="">Alle Abteilungen</option>
         </select>
     </div>
     <div class="col-md-2">
-        <select name="feeCategory" class="form-select" asp-items="Model.FeeCategoryOptions">
+        <select asp-for="FeeCategory" class="form-select" asp-items="Model.FeeCategoryOptions">
             <option value="">Alle Beiträge</option>
         </select>
     </div>
@@ -43,7 +43,7 @@
             <th>E-Mail</th>
             <th>Beitragsgruppe</th>
             <th>Status</th>
-            <th>Department</th>
+            <th>Abteilung</th>
             <th>Beigetreten</th>
             <th></th>
         </tr>
@@ -54,8 +54,8 @@
             <tr>
                 <td>@member.LastName, @member.FirstName</td>
                 <td>@member.Email</td>
-                <td>@(member.MembershipFee?.Category.ToString() ?? "-")</td>
-                <td>@member.Status</td>
+                <td>@(member.MembershipFee != null ? $"{member.MembershipFee.Name} ({VereinMember.Areas.Membership.Pages.Members.IndexModel.GetGermanFeeCategory(member.MembershipFee.Category)})" : "-")</td>
+                <td>@VereinMember.Areas.Membership.Pages.Members.IndexModel.GetGermanStatus(member.Status)</td>
                 <td>@member.Department?.Name</td>
                 <td>@member.JoinedAt.ToShortDateString()</td>
                 <td>

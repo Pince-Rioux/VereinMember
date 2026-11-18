@@ -65,15 +65,47 @@ public class IndexModel(IMemberService memberService, MembershipDbContext contex
         TotalPages = totalCount > 0 ? (int)Math.Ceiling((double)totalCount / pageSize) : 1;
 
         StatusOptions = Enum.GetValues<MemberStatus>()
-            .Select(s => new SelectListItem { Value = s.ToString(), Text = s.ToString() })
+            .Select(s => new SelectListItem
+            {
+                Value = s.ToString(),
+                Text = GetGermanStatus(s),
+                Selected = string.Equals(Status, s.ToString(), StringComparison.OrdinalIgnoreCase)
+            })
             .ToList();
 
         DepartmentOptions = await context.Departments
-            .Select(d => new SelectListItem { Value = d.Id.ToString(), Text = d.Name })
+            .Select(d => new SelectListItem
+            {
+                Value = d.Id.ToString(),
+                Text = d.Name,
+                Selected = DepartmentId.HasValue && DepartmentId.Value == d.Id
+            })
             .ToListAsync();
 
         FeeCategoryOptions = Enum.GetValues<Models.FeeCategory>()
-            .Select(f => new SelectListItem { Value = f.ToString(), Text = f.ToString() })
+            .Select(f => new SelectListItem
+            {
+                Value = f.ToString(),
+                Text = GetGermanFeeCategory(f),
+                Selected = string.Equals(FeeCategory, f.ToString(), StringComparison.OrdinalIgnoreCase)
+            })
             .ToList();
     }
+
+    public static string GetGermanStatus(MemberStatus status) => status switch
+    {
+        MemberStatus.Active => "Aktiv",
+        MemberStatus.Passive => "Passiv",
+        MemberStatus.Honorary => "Ehrenmitglied",
+        MemberStatus.Former => "Ausgetreten",
+        _ => status.ToString()
+    };
+
+    public static string GetGermanFeeCategory(Models.FeeCategory category) => category switch
+    {
+        Models.FeeCategory.Adult => "Erwachsene",
+        Models.FeeCategory.Youth => "Jugend",
+        Models.FeeCategory.Family => "Familie",
+        _ => category.ToString()
+    };
 }
