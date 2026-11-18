@@ -64,6 +64,11 @@ public class EditModel(
             catch (ArgumentOutOfRangeException) { ModelState.AddModelError("Member.BirthDate", "Invalid date."); }
         }
 
+        Member.GuardianFirstName = string.IsNullOrWhiteSpace(Member.GuardianFirstName) ? null : Member.GuardianFirstName.Trim();
+        Member.GuardianLastName = string.IsNullOrWhiteSpace(Member.GuardianLastName) ? null : Member.GuardianLastName.Trim();
+        Member.GuardianEmail = string.IsNullOrWhiteSpace(Member.GuardianEmail) ? null : Member.GuardianEmail.Trim();
+        Member.GuardianPhone = string.IsNullOrWhiteSpace(Member.GuardianPhone) ? null : Member.GuardianPhone.Trim();
+
         var validationResult = await validator.ValidateAsync(Member);
         if (!validationResult.IsValid)
         {
@@ -98,7 +103,12 @@ public class EditModel(
     private async Task LoadOptionsAsync()
     {
         FeeOptions = await context.MembershipFees
-            .Select(f => new SelectListItem { Value = f.Id.ToString(), Text = f.Name + " (" + f.Amount.ToString("C") + ")" })
+            .Select(f => new SelectListItem
+            {
+                Value = f.Id.ToString(),
+                Text = f.Name + " (" + f.Amount.ToString("C") + ")",
+                Group = new SelectListGroup { Name = f.Category.ToString() }
+            })
             .ToListAsync();
 
         DepartmentOptions = await context.Departments

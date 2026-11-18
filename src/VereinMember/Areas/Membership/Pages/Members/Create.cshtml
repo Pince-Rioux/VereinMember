@@ -78,12 +78,40 @@
     </div>
 
     @* Guardian (only for Youth) *@
-    <div class="col-md-6" id="guardianSection" style="display:none">
-        <label asp-for="Member.GuardianMemberId" class="form-label"></label>
-        <select asp-for="Member.GuardianMemberId" asp-items="Model.GuardianOptions" class="form-select">
-            <option value="">Erziehungsberechtigten wählen...</option>
-        </select>
-        <span asp-validation-for="Member.GuardianMemberId" class="text-danger"></span>
+    <div class="col-12" id="guardianSection" style="display:none">
+        <h5 class="border-bottom pb-2 mt-2">Erziehungsberechtigter</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Member.GuardianMemberId" class="form-label">Erziehungsberechtigter (Mitglied)</label>
+                <select asp-for="Member.GuardianMemberId" asp-items="Model.GuardianOptions" class="form-select">
+                    <option value="">Kein Mitglied ausgewählt...</option>
+                </select>
+                <span asp-validation-for="Member.GuardianMemberId" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <small class="text-muted">Oder Kontaktdaten eines Erziehungsberechtigten ohne eigene Mitgliedschaft:</small>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianFirstName" class="form-label">Vorname</label>
+                <input asp-for="Member.GuardianFirstName" class="form-control" />
+                <span asp-validation-for="Member.GuardianFirstName" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianLastName" class="form-label">Nachname</label>
+                <input asp-for="Member.GuardianLastName" class="form-control" />
+                <span asp-validation-for="Member.GuardianLastName" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianEmail" class="form-label">E-Mail</label>
+                <input asp-for="Member.GuardianEmail" class="form-control" type="email" />
+                <span asp-validation-for="Member.GuardianEmail" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianPhone" class="form-label">Telefon</label>
+                <input asp-for="Member.GuardianPhone" class="form-control" type="tel" />
+                <span asp-validation-for="Member.GuardianPhone" class="text-danger"></span>
+            </div>
+        </div>
     </div>
 
     @* Family members section (only for Family) *@

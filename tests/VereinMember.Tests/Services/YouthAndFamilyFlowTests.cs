@@ -290,4 +290,63 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         departing.Status.Should().Be(MemberStatus.Former);
         departing.FamilyGroupId.Should().BeNull();
     }
+
+    [Fact]
+    public async Task EditModel_YouthWithNonMemberGuardian_PreservesAndUpdatesGuardianFields()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var validator = scope.ServiceProvider.GetRequiredService<IValidator<Member>>();
+        var (youthFee, _) = await SeedFeesAsync(context);
+
+        var youth = await memberService.CreateAsync(new Member
+        {
+            FirstName = "Mia",
+            LastName = "Jung",
+            Email = "mia.jung@example.com",
+            BirthDate = new DateTime(2013, 4, 12),
+            MembershipFeeId = youthFee.Id,
+            GuardianFirstName = "Laura",
+            GuardianLastName = "Jung",
+            GuardianEmail = "laura.jung@example.com",
+            GuardianPhone = "01711111111"
+        }, "admin@verein.de");
+
+        var editModel = new VereinMember.Areas.Membership.Pages.Members.EditModel(
+            memberService,
+            validator,
+            context);
+        editModel.PageContext = new PageContext
+        {
+            HttpContext = new DefaultHttpContext()
+        };
+        editModel.TempData = new TempDataDictionary(editModel.HttpContext, new TestTempDataProvider());
+
+        var getResult = await editModel.OnGetAsync(youth.Id);
+        getResult.Should().BeOfType<PageResult>();
+        editModel.Member.GuardianFirstName.Should().Be("Laura");
+        editModel.Member.GuardianEmail.Should().Be("laura.jung@example.com");
+
+        editModel.Member.GuardianPhone = " 01722222222 ";
+        var postResult = await editModel.OnPostAsync();
+        postResult.Should().BeOfType<RedirectToPageResult>();
+
+        var reloaded = await context.Members.AsNoTracking().SingleAsync(m => m.Id == youth.Id);
+        reloaded.GuardianFirstName.Should().Be("Laura");
+        reloaded.GuardianLastName.Should().Be("Jung");
+        reloaded.GuardianEmail.Should().Be("laura.jung@example.com");
+        reloaded.GuardianPhone.Should().Be("01722222222");
+    }
+
+    private sealed class TestTempDataProvider : ITempDataProvider
+    {
+        private readonly Dictionary<string, object?> _data = new();
+        public IDictionary<string, object?> LoadTempData(HttpContext context) => _data;
+        public void SaveTempData(HttpContext context, IDictionary<string, object?> values)
+        {
+            _data.Clear();
+            foreach (var kv in values) _data[kv.Key] = kv.Value;
+        }
+    }
 }
