@@ -568,6 +568,17 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             .FirstOrDefaultAsync(g => g.Id == id);
     }
 
+    public async Task<List<FamilyMemberSummary>> GetFamilyMembersAsync(int familyGroupId)
+    {
+        return await context.Members
+            .AsNoTracking()
+            .Where(m => m.FamilyGroupId == familyGroupId && m.Status != MemberStatus.Former)
+            .OrderBy(m => m.LastName)
+            .ThenBy(m => m.FirstName)
+            .Select(m => new FamilyMemberSummary(m.Id, m.FirstName, m.LastName))
+            .ToListAsync();
+    }
+
     public async Task<FamilyGroup> CreateFamilyGroupAsync(string? name, string createdBy)
     {
         var group = new FamilyGroup

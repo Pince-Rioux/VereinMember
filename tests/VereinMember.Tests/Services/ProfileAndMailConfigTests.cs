@@ -235,6 +235,102 @@ public sealed class ProfileAndMailConfigTests : IDisposable
     }
 
     [Fact]
+    public async Task ProfilePage_OnGet_ListsCurrentFamilyMembersIncludingSelf()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var member = await SeedMemberAsync(context, "family.member@example.com");
+
+        var group = new FamilyGroup { Name = "Familie Alt", CreatedAt = DateTime.UtcNow };
+        context.FamilyGroups.Add(group);
+        await context.SaveChangesAsync();
+
+        var guardian = new Member
+        {
+            FirstName = "Mara",
+            LastName = "Alt",
+            Email = "family.guardian@example.com",
+            BirthDate = new DateTime(1990, 3, 3),
+            JoinedAt = DateTime.UtcNow.AddYears(-1),
+            Status = MemberStatus.Active,
+            MembershipFeeId = member.MembershipFeeId,
+            FamilyGroupId = group.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = "admin"
+        };
+        var child = new Member
+        {
+            FirstName = "Mia",
+            LastName = "Alt",
+            Email = "family.child@example.com",
+            BirthDate = new DateTime(2014, 5, 5),
+            JoinedAt = DateTime.UtcNow.AddYears(-1),
+            Status = MemberStatus.Active,
+            MembershipFeeId = member.MembershipFeeId,
+            FamilyGroupId = group.Id,
+            GuardianMemberId = null,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = "admin"
+        };
+        var former = new Member
+        {
+            FirstName = "Alt",
+            LastName = "Ehemalig",
+            Email = "family.former@example.com",
+            BirthDate = new DateTime(1985, 1, 1),
+            JoinedAt = DateTime.UtcNow.AddYears(-5),
+            LeftAt = DateTime.UtcNow.AddMonths(-1),
+            Status = MemberStatus.Former,
+            MembershipFeeId = member.MembershipFeeId,
+            FamilyGroupId = group.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = "admin"
+        };
+        context.Members.AddRange(guardian, child, former);
+        await context.SaveChangesAsync();
+
+        member.FamilyGroupId = group.Id;
+        member.GuardianMemberId = guardian.Id;
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var model = new ProfileModel(memberService)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
+        };
+
+        (await model.OnGetAsync()).Should().BeOfType<PageResult>();
+
+        model.FamilyDisplayName.Should().Be("Familie Alt");
+        model.FamilyMembers.Select(m => m.FirstName).Should().Equal("Lena", "Mara", "Mia");
+        model.FamilyMembers.Should().NotContain(m => m.Id == former.Id);
+        model.FamilyMembers.Should().Contain(m => m.Id == model.Member!.Id);
+        model.FamilyMembers.Should().Contain(m => m.Id == model.Member!.GuardianMemberId);
+    }
+
+    [Fact]
+    public async Task ProfilePage_OnGet_WithoutFamilyGroup_HasNoFamilyMembers()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var member = await SeedMemberAsync(context, "no.family@example.com");
+
+        var model = new ProfileModel(memberService)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
+        };
+
+        (await model.OnGetAsync()).Should().BeOfType<PageResult>();
+        model.FamilyDisplayName.Should().BeNull();
+        model.FamilyMembers.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ActivationUrlBuilder_UsesConfiguredTrustedOrigin_AndRejectsInsecureRemoteHttp()
     {
         var urlHelper = new Mock<IUrlHelper>();
