@@ -15,6 +15,18 @@ public class ProfileModel(IMemberService memberService) : PageModel
 {
     public Member? Member { get; set; }
 
+    public string GuardianDisplayName => Member?.GuardianMember is { } guardian
+        ? $"{guardian.FirstName} {guardian.LastName}".Trim()
+        : $"{Member?.GuardianFirstName} {Member?.GuardianLastName}".Trim();
+
+    public string? GuardianEmail => Member?.GuardianMember is { } guardian
+        ? guardian.Email
+        : Member?.GuardianEmail;
+
+    public string? GuardianPhone => Member?.GuardianMember is { } guardian
+        ? guardian.Phone
+        : Member?.GuardianPhone;
+
     [BindProperty]
     public ProfileUpdateInputModel Input { get; set; } = new();
 

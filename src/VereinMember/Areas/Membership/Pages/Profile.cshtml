@@ -100,14 +100,31 @@
         </div>
     }
 
-    @if (Model.Member.GuardianMember != null)
+    @if (!string.IsNullOrWhiteSpace(Model.GuardianDisplayName) ||
+        !string.IsNullOrWhiteSpace(Model.GuardianEmail) ||
+        !string.IsNullOrWhiteSpace(Model.GuardianPhone))
     {
         <div class="col-12 mt-3">
             <h5 class="border-bottom pb-2">Erziehungsberechtigter</h5>
         </div>
         <div class="col-12">
-            <label class="form-label">Erziehungsberechtigter</label>
-            <input class="form-control" value="@Model.Member.GuardianMember.LastName, @Model.Member.GuardianMember.FirstName" readonly disabled />
+            <dl class="mb-0">
+                @if (!string.IsNullOrWhiteSpace(Model.GuardianDisplayName))
+                {
+                    <dt>Name</dt>
+                    <dd>@Model.GuardianDisplayName</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.GuardianEmail))
+                {
+                    <dt>E-Mail</dt>
+                    <dd>@Model.GuardianEmail</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.GuardianPhone))
+                {
+                    <dt>Telefon</dt>
+                    <dd>@Model.GuardianPhone</dd>
+                }
+            </dl>
         </div>
     }
 

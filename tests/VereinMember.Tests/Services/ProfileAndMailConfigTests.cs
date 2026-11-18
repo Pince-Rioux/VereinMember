@@ -133,6 +133,57 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         saved.Status.Should().Be(MemberStatus.Active);
     }
 
+    [Theory]
+    [InlineData("linked", "Lena Alt", "guardian@example.com", "+491700001")]
+    [InlineData("linked-no-phone", "Lena Alt", "guardian@example.com", null)]
+    [InlineData("non-member", "Mara Beispiel", "mara@example.com", "+491700002")]
+    [InlineData("non-member-no-email", "Mara Beispiel", null, "+491700002")]
+    [InlineData("none", "", null, null)]
+    public async Task ProfilePage_OnGet_DisplaysStoredGuardianContactDetails(
+        string guardianType, string expectedName, string? expectedEmail, string? expectedPhone)
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var member = await SeedMemberAsync(context);
+        if (guardianType != "none")
+        {
+            var youthFee = new MembershipFee { Name = "Jugend", Category = FeeCategory.Youth };
+            context.MembershipFees.Add(youthFee);
+            member.MembershipFee = youthFee;
+            member.BirthDate = DateTime.UtcNow.AddYears(-14);
+        }
+
+        if (guardianType is "linked" or "linked-no-phone")
+        {
+            var guardian = await SeedMemberAsync(context, "guardian@example.com");
+            if (guardianType == "linked-no-phone")
+            {
+                guardian.Phone = null;
+            }
+            member.GuardianMemberId = guardian.Id;
+        }
+        else if (guardianType is "non-member" or "non-member-no-email")
+        {
+            member.GuardianFirstName = "Mara";
+            member.GuardianLastName = "Beispiel";
+            member.GuardianEmail = guardianType == "non-member" ? "mara@example.com" : null;
+            member.GuardianPhone = "+491700002";
+        }
+
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        var model = new ProfileModel(memberService)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
+        };
+
+        (await model.OnGetAsync()).Should().BeOfType<PageResult>();
+        model.GuardianDisplayName.Should().Be(expectedName);
+        model.GuardianEmail.Should().Be(expectedEmail);
+        model.GuardianPhone.Should().Be(expectedPhone);
+    }
+
     [Fact]
     public async Task ProfilePage_OnPost_ForbidsEditingDifferentMemberId()
     {
