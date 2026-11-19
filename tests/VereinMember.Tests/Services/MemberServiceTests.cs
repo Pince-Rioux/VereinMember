@@ -939,7 +939,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         context.FamilyGroups.AddRange(
             new FamilyGroup { Name = "Alpha", CreatedAt = DateTime.UtcNow },
@@ -957,7 +957,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var group = await service.CreateFamilyGroupAsync("New Group", "admin");
 
@@ -974,7 +974,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var adultFee = CreateAdultFee();
         context.MembershipFees.Add(adultFee);
@@ -995,7 +995,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var familyFee = CreateFamilyFee();
         context.MembershipFees.Add(familyFee);
@@ -1033,7 +1033,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var adultFee = CreateAdultFee();
         context.MembershipFees.Add(adultFee);
@@ -1051,7 +1051,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var familyFee = CreateFamilyFee();
         context.MembershipFees.Add(familyFee);
@@ -1080,7 +1080,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var group = new FamilyGroup { Name = "Empty", CreatedAt = DateTime.UtcNow };
         context.FamilyGroups.Add(group);
@@ -1098,7 +1098,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var result = await service.DeleteFamilyGroupAsync(9999);
 
@@ -1110,7 +1110,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var familyFee = CreateFamilyFee();
         context.MembershipFees.Add(familyFee);
@@ -1141,7 +1141,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     {
         await using var context = _dbFixture.CreateContext();
         var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
+        var service = new FamilyGroupService(context, auditMock.Object);
 
         var result = await service.GetFamilyGroupByIdAsync(9999);
 
@@ -1149,7 +1149,7 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
     }
 
     // ----------------------------------------------------------------------- //
-    //  GetByIdAsync / GetAllAsync tests
+    //  GetByIdAsync tests
     // ----------------------------------------------------------------------- //
 
     [Fact]
@@ -1182,32 +1182,5 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
         var result = await service.GetByIdAsync(9999);
 
         result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GetAll_ReturnsOrderedMembers()
-    {
-        await using var context = _dbFixture.CreateContext();
-        var auditMock = new Mock<IAuditService>();
-        var service = new MemberService(context, auditMock.Object);
-
-        var fee = CreateAdultFee();
-        context.MembershipFees.Add(fee);
-
-        var alice = CreateAdultMember(0, "alice@example.com", fee);
-        alice.FirstName = "Alice";
-        alice.LastName = "Alpha";
-        var bob = CreateAdultMember(0, "bob@example.com", fee);
-        bob.FirstName = "Bob";
-        bob.LastName = "Beta";
-
-        context.Members.AddRange(alice, bob);
-        await context.SaveChangesAsync();
-
-        var all = await service.GetAllAsync();
-
-        all.Should().HaveCount(2);
-        all[0].LastName.Should().Be("Alpha");
-        all[1].LastName.Should().Be("Beta");
     }
 }

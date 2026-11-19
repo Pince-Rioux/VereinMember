@@ -80,6 +80,7 @@ public static class ServiceCollectionExtensions
 
         // Register Identity services
         services.AddScoped<IMemberService, MemberService>();
+        services.AddScoped<IFamilyGroupService, FamilyGroupService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IInvitationService, InvitationService>();
         services.AddScoped<IMemberAccountService, DefaultMemberAccountService>();

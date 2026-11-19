@@ -1,5 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using VereinMember.Data;
 using VereinMember.Models;
 using Microsoft.EntityFrameworkCore;
@@ -8,12 +6,6 @@ namespace VereinMember.Services;
 
 public class MemberService(MembershipDbContext context, IAuditService auditService) : IMemberService
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        WriteIndented = false,
-        ReferenceHandler = ReferenceHandler.IgnoreCycles
-    };
-
     public async Task<Member?> GetByIdAsync(int id)
     {
         return await context.Members
@@ -34,17 +26,6 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             .Include(m => m.FamilyGroup)
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Email == email);
-    }
-
-    public async Task<List<Member>> GetAllAsync()
-    {
-        return await context.Members
-            .Include(m => m.Department)
-            .Include(m => m.MembershipFee)
-            .AsNoTracking()
-            .OrderBy(m => m.LastName)
-            .ThenBy(m => m.FirstName)
-            .ToListAsync();
     }
 
     public async Task<(List<Member> Items, int TotalCount)> SearchAsync(
@@ -95,45 +76,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
 
     public async Task<Member> CreateAsync(Member member, string createdBy)
     {
-        // Load fee to validate category constraints
-        var fee = await context.MembershipFees
-            .AsNoTracking()
-            .FirstOrDefaultAsync(f => f.Id == member.MembershipFeeId)
-            ?? throw new InvalidOperationException("Selected membership fee not found.");
-
-        // Validate based on fee category
-        switch (fee.Category)
-        {
-            case FeeCategory.Youth:
-                if (member.GuardianMemberId != null)
-                {
-                    var guardianFee = await context.MembershipFees
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(f => f.Id == context.Members
-                            .Where(m => m.Id == member.GuardianMemberId)
-                            .Select(m => m.MembershipFeeId)
-                            .FirstOrDefault());
-                    if (guardianFee == null || guardianFee.Category != FeeCategory.Adult)
-                        throw new InvalidOperationException("Guardian must be an Adult member.");
-                }
-                else if (!HasNonMemberGuardian(member))
-                {
-                    throw new InvalidOperationException("Youth member must have a guardian.");
-                }
-                break;
-
-            case FeeCategory.Family:
-                if (member.FamilyGroupId == null)
-                    throw new InvalidOperationException("Family member must belong to a family group.");
-                ClearNonMemberGuardian(member);
-                break;
-
-            case FeeCategory.Adult:
-                member.GuardianMemberId = null;
-                ClearNonMemberGuardian(member);
-                member.FamilyGroupId = null;
-                break;
-        }
+        await MemberCategoryRules.ValidateAndNormalizeAsync(context, member);
 
         member.CreatedAt = DateTime.UtcNow;
         member.UpdatedAt = DateTime.UtcNow;
@@ -217,7 +160,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
                 member.JoinedAt = now;
             member.Status = MemberStatus.Active;
             member.GuardianMemberId = null; // Family category cannot be Youth
-            ClearNonMemberGuardian(member);
+            MemberCategoryRules.ClearNonMemberGuardian(member);
 
             context.Members.Add(member);
         }
@@ -249,48 +192,7 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             throw new KeyNotFoundException($"Member with Id {member.Id} not found.");
         }
 
-        // Load fee to validate category constraints
-        var fee = await context.MembershipFees
-            .AsNoTracking()
-            .FirstOrDefaultAsync(f => f.Id == member.MembershipFeeId)
-            ?? throw new InvalidOperationException("Selected membership fee not found.");
-
-        var guardianMemberId = member.GuardianMemberId;
-        var familyGroupId = member.FamilyGroupId;
-
-        // Validate based on fee category
-        switch (fee.Category)
-        {
-            case FeeCategory.Youth:
-                if (guardianMemberId != null)
-                {
-                    if (guardianMemberId == existing.Id)
-                        throw new InvalidOperationException("A member cannot be their own guardian.");
-                    var guardianFee = await context.MembershipFees
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(f => f.Id == context.Members
-                            .Where(m => m.Id == guardianMemberId)
-                            .Select(m => m.MembershipFeeId)
-                            .FirstOrDefault());
-                    if (guardianFee == null || guardianFee.Category != FeeCategory.Adult)
-                        throw new InvalidOperationException("Guardian must be an Adult member.");
-                }
-                else if (!HasNonMemberGuardian(member))
-                {
-                    throw new InvalidOperationException("Youth member must have a guardian.");
-                }
-                break;
-
-            case FeeCategory.Family:
-                if (familyGroupId == null)
-                    throw new InvalidOperationException("Family member must belong to a family group.");
-                break;
-
-            case FeeCategory.Adult:
-                guardianMemberId = null;
-                familyGroupId = null;
-                break;
-        }
+        await MemberCategoryRules.ValidateAndNormalizeAsync(context, member, existing.Id);
 
         var oldValues = existing.ToAuditJson();
 
@@ -321,12 +223,12 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         TrackChange(nameof(Member.BankBic), existing.BankBic, member.BankBic, () => existing.BankBic = member.BankBic);
         TrackChange(nameof(Member.DepartmentId), existing.DepartmentId, member.DepartmentId, () => existing.DepartmentId = member.DepartmentId);
         TrackChange(nameof(Member.MembershipFeeId), existing.MembershipFeeId, member.MembershipFeeId, () => existing.MembershipFeeId = member.MembershipFeeId);
-        TrackChange(nameof(Member.GuardianMemberId), existing.GuardianMemberId, guardianMemberId, () => existing.GuardianMemberId = guardianMemberId);
+        TrackChange(nameof(Member.GuardianMemberId), existing.GuardianMemberId, member.GuardianMemberId, () => existing.GuardianMemberId = member.GuardianMemberId);
         TrackChange(nameof(Member.GuardianFirstName), existing.GuardianFirstName, member.GuardianFirstName, () => existing.GuardianFirstName = member.GuardianFirstName);
         TrackChange(nameof(Member.GuardianLastName), existing.GuardianLastName, member.GuardianLastName, () => existing.GuardianLastName = member.GuardianLastName);
         TrackChange(nameof(Member.GuardianEmail), existing.GuardianEmail, member.GuardianEmail, () => existing.GuardianEmail = member.GuardianEmail);
         TrackChange(nameof(Member.GuardianPhone), existing.GuardianPhone, member.GuardianPhone, () => existing.GuardianPhone = member.GuardianPhone);
-        TrackChange(nameof(Member.FamilyGroupId), existing.FamilyGroupId, familyGroupId, () => existing.FamilyGroupId = familyGroupId);
+        TrackChange(nameof(Member.FamilyGroupId), existing.FamilyGroupId, member.FamilyGroupId, () => existing.FamilyGroupId = member.FamilyGroupId);
         TrackChange(nameof(Member.Notes), existing.Notes, member.Notes, () => existing.Notes = member.Notes);
 
         existing.UpdatedAt = DateTime.UtcNow;
@@ -499,200 +401,13 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         var member = await context.Members.FindAsync(id)
             ?? throw new KeyNotFoundException($"Member {id} not found.");
 
-        var originalEmail = member.Email;
-
-        // Remove invitations and Identity account before overwriting email
-        var invitations = await context.Invitations
-            .Where(i => i.MemberId == member.Id)
-            .ToListAsync();
-        if (invitations.Count > 0)
-            context.Invitations.RemoveRange(invitations);
-
-        if (!string.IsNullOrWhiteSpace(originalEmail))
-        {
-            var identityUsers = await context.Users
-                .Where(u => u.Email == originalEmail)
-                .ToListAsync();
-            if (identityUsers.Count > 0)
-                context.Users.RemoveRange(identityUsers);
-        }
-
-        // Null out personal data (right to erasure keeps anonymous audit reference without PII)
-        member.FirstName = "[erased]";
-        member.LastName = "[erased]";
-        member.Email = $"[erased-{member.Id}]@verein.de";
-        member.Phone = null;
-        member.BirthDate = DateTime.MinValue;
-        member.Street = null;
-        member.City = null;
-        member.ZipCode = null;
-        member.Country = null;
-        member.BankIban = null;
-        member.BankBic = null;
-        member.PrivacyConsentedAt = null;
-        member.PrivacyConsentTextVersion = null;
-        member.PrivacyConsentIp = null;
-        member.SepaMandateConsentedAt = null;
-        member.SepaMandateTextVersion = null;
-        member.Notes = null;
-        member.GuardianMemberId = null;
-        ClearNonMemberGuardian(member);
-        member.FamilyGroupId = null;
-        member.DepartmentId = null;
-        member.Status = MemberStatus.Former;
-        member.LeftAt = DateTime.UtcNow;
-        member.UpdatedAt = DateTime.UtcNow;
-
-        await context.SaveChangesAsync();
-
-        await auditService.LogAsync(
-            nameof(Member), member.Id, "Erasure",
-            null, null,
-            nameof(Member), performedBy);
-    }
-
-    public async Task<List<FamilyGroup>> GetAllFamilyGroupsAsync()
-    {
-        return await context.FamilyGroups
-            .Include(g => g.Members)
-            .AsNoTracking()
-            .OrderBy(g => g.Name)
-            .ToListAsync();
-    }
-
-    public async Task<FamilyGroup?> GetFamilyGroupByIdAsync(int id)
-    {
-        return await context.FamilyGroups
-            .Include(g => g.Members)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(g => g.Id == id);
-    }
-
-    public async Task<List<FamilyMemberSummary>> GetFamilyMembersAsync(int familyGroupId)
-    {
-        return await context.Members
-            .AsNoTracking()
-            .Where(m => m.FamilyGroupId == familyGroupId && m.Status != MemberStatus.Former)
-            .OrderBy(m => m.LastName)
-            .ThenBy(m => m.FirstName)
-            .Select(m => new FamilyMemberSummary(m.Id, m.FirstName, m.LastName))
-            .ToListAsync();
-    }
-
-    public async Task<FamilyGroup> CreateFamilyGroupAsync(string? name, string createdBy)
-    {
-        var group = new FamilyGroup
-        {
-            Name = name,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        context.FamilyGroups.Add(group);
-        await context.SaveChangesAsync();
-
-        return group;
-    }
-
-    public async Task<FamilyGroup> AddMemberToFamilyGroupAsync(int memberId, int familyGroupId)
-    {
-        var member = await context.Members
-            .Include(m => m.MembershipFee)
-            .FirstOrDefaultAsync(m => m.Id == memberId)
-            ?? throw new KeyNotFoundException($"Member with Id {memberId} not found.");
-
-        var group = await context.FamilyGroups
-            .Include(g => g.Members)
-            .FirstOrDefaultAsync(g => g.Id == familyGroupId)
-            ?? throw new KeyNotFoundException($"Family group with Id {familyGroupId} not found.");
-
-        if (member.MembershipFee?.Category != FeeCategory.Family)
-            throw new InvalidOperationException("Only Family-category members can be added to a family group.");
-
-        member.FamilyGroupId = familyGroupId;
-        await context.SaveChangesAsync();
-
-        return group;
-    }
-
-    public async Task<FamilyGroup> RemoveMemberFromFamilyGroupAsync(int memberId)
-    {
-        var member = await context.Members
-            .Include(m => m.FamilyGroup)
-            .FirstOrDefaultAsync(m => m.Id == memberId)
-            ?? throw new KeyNotFoundException($"Member with Id {memberId} not found.");
-
-        var group = member.FamilyGroup
-            ?? throw new InvalidOperationException("Member is not assigned to any family group.");
-
-        // Check min 2 members
-        var activeCount = await context.Members
-            .CountAsync(m => m.FamilyGroupId == group.Id && m.Id != memberId);
-        if (activeCount < 2)
-            throw new InvalidOperationException("Family group must have at least 2 members. Remove the entire group instead.");
-
-        member.FamilyGroupId = null;
-        await context.SaveChangesAsync();
-
-        return group;
-    }
-
-    public async Task<bool> DeleteFamilyGroupAsync(int id)
-    {
-        var group = await context.FamilyGroups
-            .Include(g => g.Members)
-            .FirstOrDefaultAsync(g => g.Id == id);
-
-        if (group == null) return false;
-
-        if (group.Members.Any(m => m.Status == MemberStatus.Active))
-            throw new InvalidOperationException("Cannot delete a family group that still has active members.");
-
-        context.FamilyGroups.Remove(group);
-        await context.SaveChangesAsync();
-        return true;
-    }
-
-    public async Task<bool> DissolveFamilyGroupAsync(int id, string performedBy)
-    {
-        var group = await context.FamilyGroups
-            .Include(g => g.Members)
-            .FirstOrDefaultAsync(g => g.Id == id);
-
-        if (group == null) return false;
-
-        var memberIds = group.Members.Select(m => m.Id).ToList();
-        foreach (var member in group.Members)
-        {
-            member.FamilyGroupId = null;
-            member.UpdatedAt = DateTime.UtcNow;
-        }
-
-        context.FamilyGroups.Remove(group);
-        await context.SaveChangesAsync();
-
-        await auditService.LogAsync(
-            nameof(FamilyGroup),
-            id,
-            "FamilyGroupDissolved",
-            $"Members:{string.Join(",", memberIds)}",
-            null,
-            nameof(Member.FamilyGroupId),
-            string.IsNullOrWhiteSpace(performedBy) ? "system" : performedBy);
-
-        return true;
-    }
-
-    private static bool HasNonMemberGuardian(Member member) =>
-        !string.IsNullOrWhiteSpace(member.GuardianFirstName)
-        && !string.IsNullOrWhiteSpace(member.GuardianLastName)
-        && !string.IsNullOrWhiteSpace(member.GuardianEmail);
-
-    private static void ClearNonMemberGuardian(Member member)
-    {
-        member.GuardianFirstName = null;
-        member.GuardianLastName = null;
-        member.GuardianEmail = null;
-        member.GuardianPhone = null;
+        await MemberErasureHelper.EraseMemberPersonalDataAsync(
+            context,
+            auditService,
+            member,
+            auditAction: "Erasure",
+            performedBy: performedBy,
+            preserveLeftAt: false);
     }
 }
 

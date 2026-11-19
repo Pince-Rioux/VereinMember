@@ -11,7 +11,7 @@ namespace VereinMember.Areas.Membership.Pages;
 [Authorize]
 [RequireMembershipEnabled]
 [ValidateAntiForgeryToken]
-public class ProfileModel(IMemberService memberService) : PageModel
+public class ProfileModel(IMemberService memberService, IFamilyGroupService familyGroupService) : PageModel
 {
     public Member? Member { get; set; }
 
@@ -129,7 +129,7 @@ public class ProfileModel(IMemberService memberService) : PageModel
     private async Task LoadFamilyMembersAsync(Member member)
     {
         FamilyMembers = member.FamilyGroupId is int familyGroupId
-            ? await memberService.GetFamilyMembersAsync(familyGroupId)
+            ? await familyGroupService.GetFamilyMembersAsync(familyGroupId)
             : [];
     }
 
