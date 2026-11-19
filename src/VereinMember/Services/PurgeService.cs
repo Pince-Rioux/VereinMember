@@ -125,9 +125,16 @@ public class PurgeService : BackgroundService
             member.BankIban = null;
             member.BankBic = null;
             member.PrivacyConsentedAt = null;
+            member.PrivacyConsentTextVersion = null;
             member.PrivacyConsentIp = null;
+            member.SepaMandateConsentedAt = null;
+            member.SepaMandateTextVersion = null;
             member.Notes = null;
             member.GuardianMemberId = null;
+            member.GuardianFirstName = null;
+            member.GuardianLastName = null;
+            member.GuardianEmail = null;
+            member.GuardianPhone = null;
             member.FamilyGroupId = null;
             member.DepartmentId = null;
             member.UpdatedAt = DateTime.UtcNow;

@@ -105,25 +105,32 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         switch (fee.Category)
         {
             case FeeCategory.Youth:
-                if (member.GuardianMemberId == null)
+                if (member.GuardianMemberId != null)
+                {
+                    var guardianFee = await context.MembershipFees
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(f => f.Id == context.Members
+                            .Where(m => m.Id == member.GuardianMemberId)
+                            .Select(m => m.MembershipFeeId)
+                            .FirstOrDefault());
+                    if (guardianFee == null || guardianFee.Category != FeeCategory.Adult)
+                        throw new InvalidOperationException("Guardian must be an Adult member.");
+                }
+                else if (!HasNonMemberGuardian(member))
+                {
                     throw new InvalidOperationException("Youth member must have a guardian.");
-                var guardianFee = await context.MembershipFees
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(f => f.Id == context.Members
-                        .Where(m => m.Id == member.GuardianMemberId)
-                        .Select(m => m.MembershipFeeId)
-                        .FirstOrDefault());
-                if (guardianFee == null || guardianFee.Category != FeeCategory.Adult)
-                    throw new InvalidOperationException("Guardian must be an Adult member.");
+                }
                 break;
 
             case FeeCategory.Family:
                 if (member.FamilyGroupId == null)
                     throw new InvalidOperationException("Family member must belong to a family group.");
+                ClearNonMemberGuardian(member);
                 break;
 
             case FeeCategory.Adult:
                 member.GuardianMemberId = null;
+                ClearNonMemberGuardian(member);
                 member.FamilyGroupId = null;
                 break;
         }
@@ -160,7 +167,34 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         if (allMembers.Count < 2)
             throw new InvalidOperationException("A family group requires at least 2 members.");
 
+        // Validate birth dates and email uniqueness across the batch and existing database
+        var normalizedEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var member in allMembers)
+        {
+            if (member.BirthDate == DateTime.MinValue || member.BirthDate > DateTime.UtcNow)
+                throw new InvalidOperationException($"Invalid birth date for {member.FirstName} {member.LastName}.");
+
+            var trimmedEmail = member.Email?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(trimmedEmail))
+                throw new InvalidOperationException("Every family member must have an email address.");
+
+            if (!normalizedEmails.Add(trimmedEmail))
+                throw new InvalidOperationException($"Duplicate email address in family registration: {trimmedEmail}");
+        }
+
+        var existingEmail = await context.Members
+            .AsNoTracking()
+            .Where(m => normalizedEmails.Contains(m.Email))
+            .Select(m => m.Email)
+            .FirstOrDefaultAsync();
+        if (existingEmail != null)
+            throw new InvalidOperationException($"Email address is already registered: {existingEmail}");
+
         var now = DateTime.UtcNow;
+
+        await using var transaction = context.Database.IsRelational()
+            ? await context.Database.BeginTransactionAsync()
+            : null;
 
         // Create family group
         var group = new FamilyGroup
@@ -174,18 +208,24 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         // Create all members with the same FamilyGroupId
         foreach (var member in allMembers)
         {
+            member.Email = member.Email.Trim();
             member.FamilyGroupId = group.Id;
             member.CreatedAt = now;
             member.UpdatedAt = now;
             member.CreatedBy = createdBy;
-            member.JoinedAt = now;
+            if (member.JoinedAt == default)
+                member.JoinedAt = now;
             member.Status = MemberStatus.Active;
             member.GuardianMemberId = null; // Family category cannot be Youth
+            ClearNonMemberGuardian(member);
 
             context.Members.Add(member);
         }
 
         await context.SaveChangesAsync();
+
+        if (transaction != null)
+            await transaction.CommitAsync();
 
         // Audit each member creation
         foreach (var member in allMembers)
@@ -222,18 +262,23 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         switch (fee.Category)
         {
             case FeeCategory.Youth:
-                if (guardianMemberId == null)
+                if (guardianMemberId != null)
+                {
+                    if (guardianMemberId == existing.Id)
+                        throw new InvalidOperationException("A member cannot be their own guardian.");
+                    var guardianFee = await context.MembershipFees
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(f => f.Id == context.Members
+                            .Where(m => m.Id == guardianMemberId)
+                            .Select(m => m.MembershipFeeId)
+                            .FirstOrDefault());
+                    if (guardianFee == null || guardianFee.Category != FeeCategory.Adult)
+                        throw new InvalidOperationException("Guardian must be an Adult member.");
+                }
+                else if (!HasNonMemberGuardian(member))
+                {
                     throw new InvalidOperationException("Youth member must have a guardian.");
-                if (guardianMemberId == existing.Id)
-                    throw new InvalidOperationException("A member cannot be their own guardian.");
-                var guardianFee = await context.MembershipFees
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(f => f.Id == context.Members
-                        .Where(m => m.Id == guardianMemberId)
-                        .Select(m => m.MembershipFeeId)
-                        .FirstOrDefault());
-                if (guardianFee == null || guardianFee.Category != FeeCategory.Adult)
-                    throw new InvalidOperationException("Guardian must be an Adult member.");
+                }
                 break;
 
             case FeeCategory.Family:
@@ -277,6 +322,10 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         TrackChange(nameof(Member.DepartmentId), existing.DepartmentId, member.DepartmentId, () => existing.DepartmentId = member.DepartmentId);
         TrackChange(nameof(Member.MembershipFeeId), existing.MembershipFeeId, member.MembershipFeeId, () => existing.MembershipFeeId = member.MembershipFeeId);
         TrackChange(nameof(Member.GuardianMemberId), existing.GuardianMemberId, guardianMemberId, () => existing.GuardianMemberId = guardianMemberId);
+        TrackChange(nameof(Member.GuardianFirstName), existing.GuardianFirstName, member.GuardianFirstName, () => existing.GuardianFirstName = member.GuardianFirstName);
+        TrackChange(nameof(Member.GuardianLastName), existing.GuardianLastName, member.GuardianLastName, () => existing.GuardianLastName = member.GuardianLastName);
+        TrackChange(nameof(Member.GuardianEmail), existing.GuardianEmail, member.GuardianEmail, () => existing.GuardianEmail = member.GuardianEmail);
+        TrackChange(nameof(Member.GuardianPhone), existing.GuardianPhone, member.GuardianPhone, () => existing.GuardianPhone = member.GuardianPhone);
         TrackChange(nameof(Member.FamilyGroupId), existing.FamilyGroupId, familyGroupId, () => existing.FamilyGroupId = familyGroupId);
         TrackChange(nameof(Member.Notes), existing.Notes, member.Notes, () => existing.Notes = member.Notes);
 
@@ -481,9 +530,13 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         member.BankIban = null;
         member.BankBic = null;
         member.PrivacyConsentedAt = null;
+        member.PrivacyConsentTextVersion = null;
         member.PrivacyConsentIp = null;
+        member.SepaMandateConsentedAt = null;
+        member.SepaMandateTextVersion = null;
         member.Notes = null;
         member.GuardianMemberId = null;
+        ClearNonMemberGuardian(member);
         member.FamilyGroupId = null;
         member.DepartmentId = null;
         member.Status = MemberStatus.Former;
@@ -513,6 +566,17 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
             .Include(g => g.Members)
             .AsNoTracking()
             .FirstOrDefaultAsync(g => g.Id == id);
+    }
+
+    public async Task<List<FamilyMemberSummary>> GetFamilyMembersAsync(int familyGroupId)
+    {
+        return await context.Members
+            .AsNoTracking()
+            .Where(m => m.FamilyGroupId == familyGroupId && m.Status != MemberStatus.Former)
+            .OrderBy(m => m.LastName)
+            .ThenBy(m => m.FirstName)
+            .Select(m => new FamilyMemberSummary(m.Id, m.FirstName, m.LastName))
+            .ToListAsync();
     }
 
     public async Task<FamilyGroup> CreateFamilyGroupAsync(string? name, string createdBy)
@@ -587,6 +651,49 @@ public class MemberService(MembershipDbContext context, IAuditService auditServi
         await context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> DissolveFamilyGroupAsync(int id, string performedBy)
+    {
+        var group = await context.FamilyGroups
+            .Include(g => g.Members)
+            .FirstOrDefaultAsync(g => g.Id == id);
+
+        if (group == null) return false;
+
+        var memberIds = group.Members.Select(m => m.Id).ToList();
+        foreach (var member in group.Members)
+        {
+            member.FamilyGroupId = null;
+            member.UpdatedAt = DateTime.UtcNow;
+        }
+
+        context.FamilyGroups.Remove(group);
+        await context.SaveChangesAsync();
+
+        await auditService.LogAsync(
+            nameof(FamilyGroup),
+            id,
+            "FamilyGroupDissolved",
+            $"Members:{string.Join(",", memberIds)}",
+            null,
+            nameof(Member.FamilyGroupId),
+            string.IsNullOrWhiteSpace(performedBy) ? "system" : performedBy);
+
+        return true;
+    }
+
+    private static bool HasNonMemberGuardian(Member member) =>
+        !string.IsNullOrWhiteSpace(member.GuardianFirstName)
+        && !string.IsNullOrWhiteSpace(member.GuardianLastName)
+        && !string.IsNullOrWhiteSpace(member.GuardianEmail);
+
+    private static void ClearNonMemberGuardian(Member member)
+    {
+        member.GuardianFirstName = null;
+        member.GuardianLastName = null;
+        member.GuardianEmail = null;
+        member.GuardianPhone = null;
+    }
 }
 
 internal static class MemberExtensions
@@ -608,6 +715,9 @@ internal static class MemberExtensions
             HasBankIban = !string.IsNullOrEmpty(member.BankIban),
             HasBankBic = !string.IsNullOrEmpty(member.BankBic),
             member.PrivacyConsentedAt,
+            member.PrivacyConsentTextVersion,
+            member.SepaMandateConsentedAt,
+            member.SepaMandateTextVersion,
             member.JoinedAt,
             member.LeftAt,
             member.Status,

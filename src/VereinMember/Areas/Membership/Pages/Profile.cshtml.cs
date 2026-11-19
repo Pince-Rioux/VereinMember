@@ -15,6 +15,24 @@ public class ProfileModel(IMemberService memberService) : PageModel
 {
     public Member? Member { get; set; }
 
+    public IReadOnlyList<FamilyMemberSummary> FamilyMembers { get; private set; } = [];
+
+    public string? FamilyDisplayName => Member?.FamilyGroup is { } group
+        ? (string.IsNullOrWhiteSpace(group.Name) ? $"Familie #{group.Id}" : group.Name)
+        : null;
+
+    public string GuardianDisplayName => Member?.GuardianMember is { } guardian
+        ? $"{guardian.FirstName} {guardian.LastName}".Trim()
+        : $"{Member?.GuardianFirstName} {Member?.GuardianLastName}".Trim();
+
+    public string? GuardianEmail => Member?.GuardianMember is { } guardian
+        ? guardian.Email
+        : Member?.GuardianEmail;
+
+    public string? GuardianPhone => Member?.GuardianMember is { } guardian
+        ? guardian.Phone
+        : Member?.GuardianPhone;
+
     [BindProperty]
     public ProfileUpdateInputModel Input { get; set; } = new();
 
@@ -34,6 +52,7 @@ public class ProfileModel(IMemberService memberService) : PageModel
 
         Member = member;
         Input = ProfileUpdateInputModel.FromMember(member);
+        await LoadFamilyMembersAsync(member);
         return Page();
     }
 
@@ -59,6 +78,7 @@ public class ProfileModel(IMemberService memberService) : PageModel
         if (!ModelState.IsValid)
         {
             Member = currentMember;
+            await LoadFamilyMembersAsync(currentMember);
             return Page();
         }
 
@@ -97,12 +117,20 @@ public class ProfileModel(IMemberService memberService) : PageModel
         {
             ModelState.AddModelError(string.Empty, ex.Message);
             Member = currentMember;
+            await LoadFamilyMembersAsync(currentMember);
             return Page();
         }
         catch (KeyNotFoundException)
         {
             return NotFound();
         }
+    }
+
+    private async Task LoadFamilyMembersAsync(Member member)
+    {
+        FamilyMembers = member.FamilyGroupId is int familyGroupId
+            ? await memberService.GetFamilyMembersAsync(familyGroupId)
+            : [];
     }
 
     public sealed class ProfileUpdateInputModel

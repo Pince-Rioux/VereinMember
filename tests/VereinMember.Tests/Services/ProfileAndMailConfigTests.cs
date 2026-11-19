@@ -133,6 +133,57 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         saved.Status.Should().Be(MemberStatus.Active);
     }
 
+    [Theory]
+    [InlineData("linked", "Lena Alt", "guardian@example.com", "+491700001")]
+    [InlineData("linked-no-phone", "Lena Alt", "guardian@example.com", null)]
+    [InlineData("non-member", "Mara Beispiel", "mara@example.com", "+491700002")]
+    [InlineData("non-member-no-email", "Mara Beispiel", null, "+491700002")]
+    [InlineData("none", "", null, null)]
+    public async Task ProfilePage_OnGet_DisplaysStoredGuardianContactDetails(
+        string guardianType, string expectedName, string? expectedEmail, string? expectedPhone)
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var member = await SeedMemberAsync(context);
+        if (guardianType != "none")
+        {
+            var youthFee = new MembershipFee { Name = "Jugend", Category = FeeCategory.Youth };
+            context.MembershipFees.Add(youthFee);
+            member.MembershipFee = youthFee;
+            member.BirthDate = DateTime.UtcNow.AddYears(-14);
+        }
+
+        if (guardianType is "linked" or "linked-no-phone")
+        {
+            var guardian = await SeedMemberAsync(context, "guardian@example.com");
+            if (guardianType == "linked-no-phone")
+            {
+                guardian.Phone = null;
+            }
+            member.GuardianMemberId = guardian.Id;
+        }
+        else if (guardianType is "non-member" or "non-member-no-email")
+        {
+            member.GuardianFirstName = "Mara";
+            member.GuardianLastName = "Beispiel";
+            member.GuardianEmail = guardianType == "non-member" ? "mara@example.com" : null;
+            member.GuardianPhone = "+491700002";
+        }
+
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        var model = new ProfileModel(memberService)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
+        };
+
+        (await model.OnGetAsync()).Should().BeOfType<PageResult>();
+        model.GuardianDisplayName.Should().Be(expectedName);
+        model.GuardianEmail.Should().Be(expectedEmail);
+        model.GuardianPhone.Should().Be(expectedPhone);
+    }
+
     [Fact]
     public async Task ProfilePage_OnPost_ForbidsEditingDifferentMemberId()
     {
@@ -184,6 +235,102 @@ public sealed class ProfileAndMailConfigTests : IDisposable
     }
 
     [Fact]
+    public async Task ProfilePage_OnGet_ListsCurrentFamilyMembersIncludingSelf()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var member = await SeedMemberAsync(context, "family.member@example.com");
+
+        var group = new FamilyGroup { Name = "Familie Alt", CreatedAt = DateTime.UtcNow };
+        context.FamilyGroups.Add(group);
+        await context.SaveChangesAsync();
+
+        var guardian = new Member
+        {
+            FirstName = "Mara",
+            LastName = "Alt",
+            Email = "family.guardian@example.com",
+            BirthDate = new DateTime(1990, 3, 3),
+            JoinedAt = DateTime.UtcNow.AddYears(-1),
+            Status = MemberStatus.Active,
+            MembershipFeeId = member.MembershipFeeId,
+            FamilyGroupId = group.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = "admin"
+        };
+        var child = new Member
+        {
+            FirstName = "Mia",
+            LastName = "Alt",
+            Email = "family.child@example.com",
+            BirthDate = new DateTime(2014, 5, 5),
+            JoinedAt = DateTime.UtcNow.AddYears(-1),
+            Status = MemberStatus.Active,
+            MembershipFeeId = member.MembershipFeeId,
+            FamilyGroupId = group.Id,
+            GuardianMemberId = null,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = "admin"
+        };
+        var former = new Member
+        {
+            FirstName = "Alt",
+            LastName = "Ehemalig",
+            Email = "family.former@example.com",
+            BirthDate = new DateTime(1985, 1, 1),
+            JoinedAt = DateTime.UtcNow.AddYears(-5),
+            LeftAt = DateTime.UtcNow.AddMonths(-1),
+            Status = MemberStatus.Former,
+            MembershipFeeId = member.MembershipFeeId,
+            FamilyGroupId = group.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = "admin"
+        };
+        context.Members.AddRange(guardian, child, former);
+        await context.SaveChangesAsync();
+
+        member.FamilyGroupId = group.Id;
+        member.GuardianMemberId = guardian.Id;
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var model = new ProfileModel(memberService)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
+        };
+
+        (await model.OnGetAsync()).Should().BeOfType<PageResult>();
+
+        model.FamilyDisplayName.Should().Be("Familie Alt");
+        model.FamilyMembers.Select(m => m.FirstName).Should().Equal("Lena", "Mara", "Mia");
+        model.FamilyMembers.Should().NotContain(m => m.Id == former.Id);
+        model.FamilyMembers.Should().Contain(m => m.Id == model.Member!.Id);
+        model.FamilyMembers.Should().Contain(m => m.Id == model.Member!.GuardianMemberId);
+    }
+
+    [Fact]
+    public async Task ProfilePage_OnGet_WithoutFamilyGroup_HasNoFamilyMembers()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var member = await SeedMemberAsync(context, "no.family@example.com");
+
+        var model = new ProfileModel(memberService)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
+        };
+
+        (await model.OnGetAsync()).Should().BeOfType<PageResult>();
+        model.FamilyDisplayName.Should().BeNull();
+        model.FamilyMembers.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ActivationUrlBuilder_UsesConfiguredTrustedOrigin_AndRejectsInsecureRemoteHttp()
     {
         var urlHelper = new Mock<IUrlHelper>();
@@ -227,5 +374,38 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         var act = () => services.AddVereinMember(config);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*MembershipMail:Smtp:Server*");
+    }
+
+    [Fact]
+    public async Task MembersIndex_PreservesSelectedFilters_UsesGermanLabels_AndFiltersByFeeCategory()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var dept = new Department { Name = "Herren" };
+        var adultFee = new MembershipFee { Name = "Mitglied", Amount = 80m, Interval = FeeInterval.Yearly, Category = FeeCategory.Adult };
+        var youthFee = new MembershipFee { Name = "Jugend", Amount = 60m, Interval = FeeInterval.Yearly, Category = FeeCategory.Youth };
+        context.Departments.Add(dept);
+        context.MembershipFees.AddRange(adultFee, youthFee);
+        await context.SaveChangesAsync();
+
+        context.Members.AddRange(
+            new Member { FirstName = "A", LastName = "Adult", Email = "a@ex.de", BirthDate = new DateTime(1990, 1, 1), MembershipFeeId = adultFee.Id, DepartmentId = dept.Id, Status = MemberStatus.Active },
+            new Member { FirstName = "Y", LastName = "Youth", Email = "y@ex.de", BirthDate = new DateTime(2014, 1, 1), MembershipFeeId = youthFee.Id, DepartmentId = dept.Id, Status = MemberStatus.Active });
+        await context.SaveChangesAsync();
+
+        var indexModel = new VereinMember.Areas.Membership.Pages.Members.IndexModel(memberService, context)
+        {
+            Status = "Active",
+            DepartmentId = dept.Id,
+            FeeCategory = "Youth"
+        };
+
+        await indexModel.OnGetAsync();
+
+        indexModel.Members.Should().ContainSingle(m => m.Email == "y@ex.de");
+        indexModel.StatusOptions.Single(o => o.Value == "Active").Should().Match<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>(o => o.Selected && o.Text == "Aktiv");
+        indexModel.DepartmentOptions.Single(o => o.Value == dept.Id.ToString()).Selected.Should().BeTrue();
+        indexModel.FeeCategoryOptions.Single(o => o.Value == "Youth").Should().Match<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>(o => o.Selected && o.Text == "Jugend");
     }
 }

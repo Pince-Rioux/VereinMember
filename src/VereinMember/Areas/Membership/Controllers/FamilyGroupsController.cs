@@ -132,4 +132,15 @@ public class FamilyGroupsController : ControllerBase
             });
         }
     }
+
+    [HttpPost("{id}/dissolve")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> Dissolve(int id)
+    {
+        var result = await _memberService.DissolveFamilyGroupAsync(id, User.Identity?.Name ?? "system");
+        if (!result)
+            return NotFound();
+
+        return NoContent();
+    }
 }

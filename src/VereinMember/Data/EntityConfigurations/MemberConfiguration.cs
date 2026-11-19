@@ -59,6 +59,15 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
                 v => v == null ? null : MembershipEncryption.Current.Encrypt(v),
                 v => v == null ? null : MembershipEncryption.Current.Decrypt(v));
 
+        builder.Property(m => m.PrivacyConsentTextVersion)
+            .HasMaxLength(32);
+
+        builder.Property(m => m.PrivacyConsentIp)
+            .HasMaxLength(45);
+
+        builder.Property(m => m.SepaMandateTextVersion)
+            .HasMaxLength(32);
+
         builder.Property(m => m.Status)
             .IsRequired()
             .HasMaxLength(20)
@@ -91,6 +100,18 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(m => new { m.FirstName, m.LastName });
+
+        builder.Property(m => m.GuardianFirstName)
+            .HasMaxLength(100);
+
+        builder.Property(m => m.GuardianLastName)
+            .HasMaxLength(100);
+
+        builder.Property(m => m.GuardianEmail)
+            .HasMaxLength(200);
+
+        builder.Property(m => m.GuardianPhone)
+            .HasMaxLength(50);
 
         // Guardian self-reference (Youth to Adult)
         builder.HasOne(m => m.GuardianMember)

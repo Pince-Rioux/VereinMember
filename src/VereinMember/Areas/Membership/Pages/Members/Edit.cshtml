@@ -78,12 +78,40 @@
             <option value="">Keine Abteilung</option>
         </select>
     </div>
-    <div class="col-md-6">
-        <label asp-for="Member.GuardianMemberId" class="form-label"></label>
-        <select asp-for="Member.GuardianMemberId" asp-items="Model.GuardianOptions" class="form-select">
-            <option value="">Erziehungsberechtigten wählen...</option>
-        </select>
-        <span asp-validation-for="Member.GuardianMemberId" class="text-danger"></span>
+    <div class="col-12" id="guardianSection">
+        <h5 class="border-bottom pb-2 mt-2">Erziehungsberechtigter (bei Jugendmitgliedschaft)</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Member.GuardianMemberId" class="form-label">Erziehungsberechtigter (Mitglied)</label>
+                <select asp-for="Member.GuardianMemberId" asp-items="Model.GuardianOptions" class="form-select">
+                    <option value="">Kein Mitglied ausgewählt...</option>
+                </select>
+                <span asp-validation-for="Member.GuardianMemberId" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <small class="text-muted">Oder Kontaktdaten eines Erziehungsberechtigten ohne eigene Mitgliedschaft:</small>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianFirstName" class="form-label">Vorname</label>
+                <input asp-for="Member.GuardianFirstName" class="form-control" />
+                <span asp-validation-for="Member.GuardianFirstName" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianLastName" class="form-label">Nachname</label>
+                <input asp-for="Member.GuardianLastName" class="form-control" />
+                <span asp-validation-for="Member.GuardianLastName" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianEmail" class="form-label">E-Mail</label>
+                <input asp-for="Member.GuardianEmail" class="form-control" type="email" />
+                <span asp-validation-for="Member.GuardianEmail" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianPhone" class="form-label">Telefon</label>
+                <input asp-for="Member.GuardianPhone" class="form-control" type="tel" />
+                <span asp-validation-for="Member.GuardianPhone" class="text-danger"></span>
+            </div>
+        </div>
     </div>
     <div class="col-md-6">
         <label asp-for="Member.FamilyGroupId" class="form-label">Familie</label>
@@ -128,4 +156,35 @@
 
 @section script {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const feeSelect = document.getElementById('Member_MembershipFeeId');
+            const guardianSection = document.getElementById('guardianSection');
+            if (!feeSelect || !guardianSection) return;
+
+            function getSelectedFeeCategory() {
+                const selectedOption = feeSelect.options[feeSelect.selectedIndex];
+                if (!selectedOption || !selectedOption.parentElement) return null;
+                return selectedOption.parentElement.getAttribute('label') || null;
+            }
+
+            function hasGuardianData() {
+                const memberId = document.getElementById('Member_GuardianMemberId')?.value;
+                const gFirst = document.getElementById('Member_GuardianFirstName')?.value;
+                const gLast = document.getElementById('Member_GuardianLastName')?.value;
+                const gEmail = document.getElementById('Member_GuardianEmail')?.value;
+                const gPhone = document.getElementById('Member_GuardianPhone')?.value;
+                return Boolean(memberId || gFirst || gLast || gEmail || gPhone);
+            }
+
+            function toggleGuardianSection() {
+                const category = getSelectedFeeCategory();
+                const isYouth = category === 'Youth' || category === '1';
+                guardianSection.style.display = (isYouth || hasGuardianData()) ? 'block' : 'none';
+            }
+
+            feeSelect.addEventListener('change', toggleGuardianSection);
+            toggleGuardianSection();
+        });
+    </script>
 }

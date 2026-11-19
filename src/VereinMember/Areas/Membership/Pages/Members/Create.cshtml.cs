@@ -69,6 +69,11 @@ public class CreateModel(
         }
 
         // Standard (non-family) create
+        Member.GuardianFirstName = string.IsNullOrWhiteSpace(Member.GuardianFirstName) ? null : Member.GuardianFirstName.Trim();
+        Member.GuardianLastName = string.IsNullOrWhiteSpace(Member.GuardianLastName) ? null : Member.GuardianLastName.Trim();
+        Member.GuardianEmail = string.IsNullOrWhiteSpace(Member.GuardianEmail) ? null : Member.GuardianEmail.Trim();
+        Member.GuardianPhone = string.IsNullOrWhiteSpace(Member.GuardianPhone) ? null : Member.GuardianPhone.Trim();
+
         var validationResult = await validator.ValidateAsync(Member);
         if (!validationResult.IsValid)
         {
@@ -119,18 +124,44 @@ public class CreateModel(
 
         // Convert FamilyMemberItem → Member for each sub-member
         var subMembers = new List<Member>();
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(Member.Email))
+            seenEmails.Add(Member.Email.Trim());
+
         for (int i = 0; i < FamilyMembers.Count; i++)
         {
             var fm = FamilyMembers[i];
             if (string.IsNullOrWhiteSpace(fm.FirstName) && string.IsNullOrWhiteSpace(fm.LastName) && string.IsNullOrWhiteSpace(fm.Email))
                 continue; // skip empty rows
 
+            var subEmail = fm.Email?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(subEmail))
+            {
+                if (!seenEmails.Add(subEmail))
+                {
+                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Duplicate email address within family.");
+                    hasErrors = true;
+                }
+                else if (await context.Members.AsNoTracking().AnyAsync(m => m.Email == subEmail))
+                {
+                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Email address is already registered.");
+                    hasErrors = true;
+                }
+            }
+
+            if (fm.BirthDay.HasValue && fm.BirthMonth.HasValue && fm.BirthYear.HasValue && fm.BirthDate == DateTime.MinValue)
+            {
+                ModelState.AddModelError($"FamilyMembers[{i}].BirthDate", "Invalid birth date.");
+                hasErrors = true;
+            }
+
             var subMember = new Member
             {
                 FirstName = fm.FirstName?.Trim() ?? "",
                 LastName = fm.LastName?.Trim() ?? "",
-                Email = fm.Email?.Trim() ?? "",
+                Email = subEmail,
                 BirthDate = fm.BirthDate,
+                JoinedAt = fm.JoinedAt == default ? DateTime.UtcNow : fm.JoinedAt,
                 MembershipFeeId = Member.MembershipFeeId, // same fee category
                 Street = Member.Street,
                 City = Member.City,
@@ -239,8 +270,11 @@ public class CreateModel(
         {
             get
             {
-                if (BirthDay.HasValue && BirthMonth.HasValue && BirthYear.HasValue)
-                    return new DateTime(BirthYear.Value, BirthMonth.Value, BirthDay.Value);
+                if (BirthDay is >= 1 and <= 31 && BirthMonth is >= 1 and <= 12 && BirthYear is >= 1900 and <= 2100)
+                {
+                    if (BirthDay.Value <= DateTime.DaysInMonth(BirthYear.Value, BirthMonth.Value))
+                        return new DateTime(BirthYear.Value, BirthMonth.Value, BirthDay.Value);
+                }
                 return DateTime.MinValue;
             }
         }

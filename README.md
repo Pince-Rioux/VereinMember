@@ -55,6 +55,34 @@ Maintain them with SQL against the membership database:
 
 After changing reference data, no application restart is required — the forms read the tables on each request.
 
+## ClubSite integration
+
+VereinMember owns `/Membership`, including the **Anmelden**, **Abmelden**,
+**Registrieren**, **Mein Profil**, and **Administration** navigation. The landing
+page resolves the current user through the membership store, so a CMS login that
+shares the authentication cookie is not treated as a member login.
+
+The host site remains responsible for its layout and menu. No membership-specific
+menu code or configuration is required when the CMS page is placed in a submenu.
+
+An existing CMS page may keep the old `/mitglieder-bereich` URL and its sitemap
+position, but must use a **permanent redirect** to `/Membership`. This avoids two
+owners rendering the same public page. Configure that redirect in Piranha Manager
+(or through the CMS API); membership links and authorization do not belong in
+ClubSite's generic `Page.cshtml`.
+
+## Registration declarations
+
+Self-registration requires a valid IBAN and separate confirmation of the
+membership/data declaration and the SEPA direct-debit mandate. The main member's
+record stores both consent timestamps and text versions; family members use the
+main applicant's payment mandate.
+
+The displayed wording in `Areas/Membership/Pages/Register.cshtml` and the version
+constants in `Register.cshtml.cs` must change together. Do not rewrite the meaning
+of an existing version silently: add a new version when the legal text changes.
+The migration `AddRegistrationConsents` adds the corresponding storage.
+
 ## Tech Stack
 
 - .NET 8 + ASP.NET Core

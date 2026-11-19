@@ -343,8 +343,24 @@ namespace VereinMember.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("GuardianEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("GuardianFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("GuardianLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int?>("GuardianMemberId")
                         .HasColumnType("int");
+
+                    b.Property<string>("GuardianPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("datetime2");
@@ -368,10 +384,22 @@ namespace VereinMember.Data.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("PrivacyConsentIp")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<string>("PrivacyConsentTextVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime?>("PrivacyConsentedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SepaMandateConsentedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SepaMandateTextVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("Status")
                         .IsRequired()

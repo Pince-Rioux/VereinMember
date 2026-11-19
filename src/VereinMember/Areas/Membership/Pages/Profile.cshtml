@@ -95,19 +95,60 @@
             <h5 class="border-bottom pb-2">Familie</h5>
         </div>
         <div class="col-12">
-            <label class="form-label">Familie</label>
-            <input class="form-control" value="@(Model.Member.FamilyGroup.Name ?? "Familie #" + Model.Member.FamilyGroup.Id)" readonly disabled />
+            <label class="form-label">Familiengruppe</label>
+            <input class="form-control" value="@Model.FamilyDisplayName" readonly disabled />
+        </div>
+        <div class="col-12">
+            <div class="form-label">Familienmitglieder</div>
+            @if (Model.FamilyMembers.Count == 0)
+            {
+                <p class="text-muted mb-0">Keine Familienmitglieder hinterlegt.</p>
+            }
+            else
+            {
+                <ul class="list-group">
+                    @foreach (var familyMember in Model.FamilyMembers)
+                    {
+                        <li class="list-group-item">
+                            <span>
+                                @familyMember.FirstName @familyMember.LastName
+                                @if (familyMember.Id == Model.Member.Id)
+                                {
+                                    <span class="badge bg-secondary ms-2">Sie</span>
+                                }
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
         </div>
     }
 
-    @if (Model.Member.GuardianMember != null)
+    @if (!string.IsNullOrWhiteSpace(Model.GuardianDisplayName) ||
+        !string.IsNullOrWhiteSpace(Model.GuardianEmail) ||
+        !string.IsNullOrWhiteSpace(Model.GuardianPhone))
     {
         <div class="col-12 mt-3">
             <h5 class="border-bottom pb-2">Erziehungsberechtigter</h5>
         </div>
         <div class="col-12">
-            <label class="form-label">Erziehungsberechtigter</label>
-            <input class="form-control" value="@Model.Member.GuardianMember.LastName, @Model.Member.GuardianMember.FirstName" readonly disabled />
+            <dl class="mb-0">
+                @if (!string.IsNullOrWhiteSpace(Model.GuardianDisplayName))
+                {
+                    <dt>Name</dt>
+                    <dd>@Model.GuardianDisplayName</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.GuardianEmail))
+                {
+                    <dt>E-Mail</dt>
+                    <dd>@Model.GuardianEmail</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.GuardianPhone))
+                {
+                    <dt>Telefon</dt>
+                    <dd>@Model.GuardianPhone</dd>
+                }
+            </dl>
         </div>
     }
 

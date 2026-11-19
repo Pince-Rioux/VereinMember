@@ -40,6 +40,17 @@
         <dt class="col-sm-3">Erziehungsberechtigter</dt>
         <dd class="col-sm-9">@Model.Member.GuardianMember.LastName, @Model.Member.GuardianMember.FirstName</dd>
     }
+    else if (!string.IsNullOrWhiteSpace(Model.Member?.GuardianFirstName) || !string.IsNullOrWhiteSpace(Model.Member?.GuardianLastName))
+    {
+        <dt class="col-sm-3">Erziehungsberechtigter</dt>
+        <dd class="col-sm-9">
+            @($"{Model.Member?.GuardianFirstName} {Model.Member?.GuardianLastName}".Trim())
+            @if (!string.IsNullOrWhiteSpace(Model.Member?.GuardianEmail))
+            {
+                <span class="text-muted">(@Model.Member.GuardianEmail@(string.IsNullOrWhiteSpace(Model.Member.GuardianPhone) ? "" : $", {Model.Member.GuardianPhone}"))</span>
+            }
+        </dd>
+    }
 
     @if (Model.Member?.FamilyGroup != null)
     {

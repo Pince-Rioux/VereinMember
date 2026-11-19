@@ -78,12 +78,40 @@
     </div>
 
     @* Guardian (only for Youth) *@
-    <div class="col-md-6" id="guardianSection" style="display:none">
-        <label asp-for="Member.GuardianMemberId" class="form-label"></label>
-        <select asp-for="Member.GuardianMemberId" asp-items="Model.GuardianOptions" class="form-select">
-            <option value="">Erziehungsberechtigten wählen...</option>
-        </select>
-        <span asp-validation-for="Member.GuardianMemberId" class="text-danger"></span>
+    <div class="col-12" id="guardianSection" style="display:none">
+        <h5 class="border-bottom pb-2 mt-2">Erziehungsberechtigter</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Member.GuardianMemberId" class="form-label">Erziehungsberechtigter (Mitglied)</label>
+                <select asp-for="Member.GuardianMemberId" asp-items="Model.GuardianOptions" class="form-select">
+                    <option value="">Kein Mitglied ausgewählt...</option>
+                </select>
+                <span asp-validation-for="Member.GuardianMemberId" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <small class="text-muted">Oder Kontaktdaten eines Erziehungsberechtigten ohne eigene Mitgliedschaft:</small>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianFirstName" class="form-label">Vorname</label>
+                <input asp-for="Member.GuardianFirstName" class="form-control" />
+                <span asp-validation-for="Member.GuardianFirstName" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianLastName" class="form-label">Nachname</label>
+                <input asp-for="Member.GuardianLastName" class="form-control" />
+                <span asp-validation-for="Member.GuardianLastName" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianEmail" class="form-label">E-Mail</label>
+                <input asp-for="Member.GuardianEmail" class="form-control" type="email" />
+                <span asp-validation-for="Member.GuardianEmail" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Member.GuardianPhone" class="form-label">Telefon</label>
+                <input asp-for="Member.GuardianPhone" class="form-control" type="tel" />
+                <span asp-validation-for="Member.GuardianPhone" class="text-danger"></span>
+            </div>
+        </div>
     </div>
 
     @* Family members section (only for Family) *@
@@ -95,6 +123,7 @@
         <div id="familyMembersContainer">
             @* Template row — hidden, used for cloning *@
             <div id="familyMemberTemplate" class="family-member-row row g-2 mb-2 p-2 border rounded" style="display:none">
+                <input type="hidden" name="FamilyMembers.Index" value="INDEX" />
                 <div class="col-md-2">
                     <input name="FamilyMembers[INDEX].FirstName" class="form-control form-control-sm" placeholder="Vorname" />
                 </div>
@@ -199,7 +228,7 @@
             const familyContainer = document.getElementById('familyMembersContainer');
             const template = document.getElementById('familyMemberTemplate');
             const addBtn = document.getElementById('addFamilyMemberBtn');
-            let familyMemberIndex = @Model.FamilyMembers.Count;
+            let familyMemberIndex = 0;
 
             // Get fee category data from optgroup labels
             function getSelectedFeeCategory() {
@@ -213,14 +242,14 @@
                 const category = getSelectedFeeCategory();
 
                 // Guardian: show only for Youth
-                if (category === 'Youth') {
+                if (category === 'Youth' || category === '1') {
                     guardianSection.style.display = 'block';
                 } else {
                     guardianSection.style.display = 'none';
                 }
 
                 // Family: show only for Family
-                if (category === 'Family') {
+                if (category === 'Family' || category === '2') {
                     familySection.style.display = 'block';
                 } else {
                     familySection.style.display = 'none';
@@ -242,6 +271,9 @@
                     if (name) {
                         field.setAttribute('name', name.replace('INDEX', index));
                         field.setAttribute('id', 'FamilyMembers_' + index + '_' + name.split('.').pop());
+                    }
+                    if (field.getAttribute('name') === 'FamilyMembers.Index') {
+                        field.value = index;
                     }
                 });
 
@@ -297,29 +329,30 @@
                     .Where(i => i >= 0)
                     .Distinct()
                     .ToHashSet();
+                var initialAdminFamilyRows = new List<object>();
+                for (int i = 0; i < Model.FamilyMembers.Count; i++)
+                {
+                    var fm = Model.FamilyMembers[i];
+                    var hasErrors = memberIndicesWithErrors.Contains(i);
+                    var errors = validationErrors
+                        .Where(kvp => kvp.Key.StartsWith($"FamilyMembers[{i}]"))
+                        .SelectMany(kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage))
+                        .ToList();
+                    initialAdminFamilyRows.Add(new
+                    {
+                        firstName = fm.FirstName,
+                        lastName = fm.LastName,
+                        email = fm.Email,
+                        birthDate = fm.BirthDate.Year > 1 ? fm.BirthDate.ToString("yyyy-MM-dd") : "",
+                        joinedAt = fm.JoinedAt.Year > 1 ? fm.JoinedAt.ToString("yyyy-MM-dd") : "",
+                        relationship = fm.Relationship,
+                        hasErrors,
+                        errors
+                    });
+                }
             }
-            @for (int i = 0; i < Model.FamilyMembers.Count; i++)
-            {
-                var fm = Model.FamilyMembers[i];
-                var hasErrors = memberIndicesWithErrors.Contains(i);
-                var errors = validationErrors
-                    .Where(kvp => kvp.Key.StartsWith($"FamilyMembers[{i}]"))
-                    .SelectMany(kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage))
-                    .ToList();
-                <text>
-                addFamilyMemberRow({
-                    firstName: '@fm.FirstName.Replace("'", "\\'")',
-                    lastName: '@fm.LastName.Replace("'", "\\'")',
-                    email: '@fm.Email.Replace("'", "\\'")',
-                    birthDate: '@(fm.BirthDate.Year > 1 ? fm.BirthDate.ToString("yyyy-MM-dd") : "")',
-                    joinedAt: '@(fm.JoinedAt.Year > 1 ? fm.JoinedAt.ToString("yyyy-MM-dd") : "")',
-                    relationship: '@fm.Relationship',
-                    hasErrors: @(hasErrors ? "true" : "false"),
-                    @* Pass errors as a string since we can't serialize List<string> into JS easily *@
-                    errors: @(System.Text.Json.JsonSerializer.Serialize(errors))
-                });
-                </text>
-            }
+            const initialAdminFamilyRows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialAdminFamilyRows));
+            initialAdminFamilyRows.forEach(addFamilyMemberRow);
 
             // Event listeners
             feeSelect.addEventListener('change', toggleSections);

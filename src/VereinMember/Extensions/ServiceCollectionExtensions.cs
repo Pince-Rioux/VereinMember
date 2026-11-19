@@ -26,11 +26,33 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Use ClubMembershipDb connection string, fall back to shared VolleyballClub
-        Enabled = configuration.GetValue<bool>("ClubMembership:Enabled");
+        // Validate required configuration first before mutating static module state
+        var enabled = configuration.GetValue<bool>("ClubMembership:Enabled");
         var connStr = configuration.GetConnectionString("ClubMembershipDb")
                       ?? configuration.GetConnectionString("VolleyballClub")
                       ?? throw new InvalidOperationException("No valid connection string found. Configure 'ClubMembershipDb' or 'VolleyballClub'.");
+
+        // Add AES-256-GCM encryption for sensitive personal data (fail closed if key is missing)
+        var key = configuration["MembershipEncryption:Key"];
+        if (string.IsNullOrWhiteSpace(key))
+            key = Environment.GetEnvironmentVariable("MEMBERSHIP_ENCRYPTION_KEY");
+
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new InvalidOperationException(
+                "MembershipEncryption:Key configuration or MEMBERSHIP_ENCRYPTION_KEY environment variable must be set to a valid base64-encoded 256-bit (32-byte) key.");
+        }
+
+        var encryptionService = new AesEncryptionService(key);
+
+        var mailMode = configuration.GetValue<string>("MembershipMail:Mode")?.Trim().ToLowerInvariant();
+        if (mailMode == "smtp" && string.IsNullOrWhiteSpace(configuration["MembershipMail:Smtp:Server"]))
+        {
+            throw new InvalidOperationException(
+                "MembershipMail:Smtp:Server must be configured when MembershipMail:Mode is 'Smtp'.");
+        }
+
+        Enabled = enabled;
 
         // Register the Membership DbContext (now includes Identity tables in Membership schema)
         services.AddDbContext<MembershipDbContext>(options =>
@@ -66,17 +88,12 @@ public static class ServiceCollectionExtensions
         //   Smtp -> sends through a mail server (production)
         //   anything else -> logs only (safe default when unconfigured)
         services.Configure<MailOptions>(configuration.GetSection("MembershipMail"));
-        switch (configuration.GetValue<string>("MembershipMail:Mode")?.Trim().ToLowerInvariant())
+        switch (mailMode)
         {
             case "file":
                 services.TryAddScoped<IEmailSender, FileEmailSender>();
                 break;
             case "smtp":
-                if (string.IsNullOrWhiteSpace(configuration["MembershipMail:Smtp:Server"]))
-                {
-                    throw new InvalidOperationException(
-                        "MembershipMail:Smtp:Server must be configured when MembershipMail:Mode is 'Smtp'.");
-                }
                 services.TryAddScoped<IEmailSender, SmtpEmailSender>();
                 break;
             default:
@@ -85,18 +102,6 @@ public static class ServiceCollectionExtensions
         }
         services.AddScoped<IValidator<Member>, MemberValidator>();
 
-        // Add AES-256-GCM encryption for sensitive personal data (fail closed if key is missing)
-        var key = configuration["MembershipEncryption:Key"];
-        if (string.IsNullOrWhiteSpace(key))
-            key = Environment.GetEnvironmentVariable("MEMBERSHIP_ENCRYPTION_KEY");
-
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new InvalidOperationException(
-                "MembershipEncryption:Key configuration or MEMBERSHIP_ENCRYPTION_KEY environment variable must be set to a valid base64-encoded 256-bit (32-byte) key.");
-        }
-
-        var encryptionService = new AesEncryptionService(key);
         services.AddSingleton<IEncryptionService>(encryptionService);
 
         // Initialize static encryption reference for EF Core value converters

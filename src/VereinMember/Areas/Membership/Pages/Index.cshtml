@@ -1,0 +1,75 @@
+@page "/Membership"
+@model VereinMember.Areas.Membership.Pages.IndexModel
+@{
+    ViewData["Title"] = "Mitgliederbereich";
+    Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+    Response.Headers.Pragma = "no-cache";
+}
+
+<header>
+    <div class="container text-center">
+        <h1>Mitgliederbereich</h1>
+    </div>
+</header>
+<main>
+    <div class="block column-block">
+        <div class="mx-3">
+            <div class="row">
+                <div class="col-md">
+                    <p>
+                        @if (!Model.IsMemberSignedIn)
+                        {
+                            <a asp-area="Membership" asp-page="/Login">Anmelden</a>
+                        }
+                        else
+                        {
+                            <span class="text-muted" aria-disabled="true">Anmelden</span>
+                        }
+                    </p>
+                </div>
+                <div class="col-md">
+                    <p>
+                        @if (Model.IsMemberSignedIn)
+                        {
+                            <a asp-area="Membership" asp-page="/Logout">Abmelden</a>
+                        }
+                        else
+                        {
+                            <span class="text-muted" aria-disabled="true">Abmelden</span>
+                        }
+                    </p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md">
+                    <p>
+                        @if (Model.IsMemberSignedIn)
+                        {
+                            <a asp-area="Membership" asp-page="/Profile">Mein Profil</a>
+                        }
+                        else
+                        {
+                            <span class="text-muted" aria-disabled="true">Mein Profil</span>
+                        }
+                    </p>
+                </div>
+                <div class="col-md">
+                    <p>
+                        @if (!Model.IsMemberSignedIn)
+                        {
+                            <a asp-area="Membership" asp-page="/Register">Registrieren</a>
+                        }
+                        else
+                        {
+                            <span class="text-muted" aria-disabled="true">Registrieren</span>
+                        }
+                    </p>
+                </div>
+            </div>
+            @if (Model.CanAdministerMembers)
+            {
+                <p><a asp-area="Membership" asp-page="/Admin/Index">Administration</a></p>
+            }
+        </div>
+    </div>
+</main>

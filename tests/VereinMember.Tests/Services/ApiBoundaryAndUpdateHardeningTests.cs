@@ -26,6 +26,7 @@ using VereinMember.Services.Validators;
 
 namespace VereinMember.Tests.Services;
 
+[Collection("StaticMembershipState")]
 public sealed class ApiBoundaryAndUpdateHardeningTests : IDisposable
 {
     private readonly ServiceProvider _provider;
@@ -284,11 +285,13 @@ public sealed class ApiBoundaryAndUpdateHardeningTests : IDisposable
             BirthMonth = 5,
             BirthYear = 1995,
             PrivacyConsented = true,
+            SepaMandateConsented = true,
             Member = new Member
             {
                 FirstName = "Tom",
                 LastName = "Tester",
                 Email = "tom@example.com",
+                BankIban = "DE89370400440532013000",
                 MembershipFeeId = fee.Id
             }
         };

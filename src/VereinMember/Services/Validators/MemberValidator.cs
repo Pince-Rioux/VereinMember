@@ -62,14 +62,33 @@ public class MemberValidator : AbstractValidator<Member>
         RuleFor(m => m.MembershipFeeId)
             .GreaterThan(0).WithMessage("A membership fee must be selected.");
 
-        // Category-specific: Guardian required for Youth
-        RuleFor(m => m.GuardianMemberId)
-            .NotEmpty().WithMessage("A guardian is required for Youth members.")
+        // Category-specific: Guardian required for Youth (either an existing Adult member OR non-member guardian contact)
+        RuleFor(m => m)
+            .Must(m => m.GuardianMemberId.HasValue || HasNonMemberGuardian(m))
+            .WithName("GuardianMemberId")
+            .WithMessage("A guardian is required for Youth members.")
             .WhenAsync(async (m, _) =>
             {
                 var fee = await GetFeeAsync(m.MembershipFeeId);
                 return fee?.Category == FeeCategory.Youth;
             });
+
+        RuleFor(m => m.GuardianEmail)
+            .EmailAddress().WithMessage("A valid guardian email address is required.")
+            .MaximumLength(200)
+            .When(m => !string.IsNullOrWhiteSpace(m.GuardianEmail));
+
+        RuleFor(m => m.GuardianFirstName)
+            .MaximumLength(100)
+            .When(m => !string.IsNullOrWhiteSpace(m.GuardianFirstName));
+
+        RuleFor(m => m.GuardianLastName)
+            .MaximumLength(100)
+            .When(m => !string.IsNullOrWhiteSpace(m.GuardianLastName));
+
+        RuleFor(m => m.GuardianPhone)
+            .MaximumLength(50)
+            .When(m => !string.IsNullOrWhiteSpace(m.GuardianPhone));
 
         RuleFor(m => m.GuardianMemberId)
             .NotEqual(m => m.Id).WithMessage("A member cannot be their own guardian.")
@@ -87,6 +106,11 @@ public class MemberValidator : AbstractValidator<Member>
                 return fee?.Category != FeeCategory.Family;
             });
     }
+
+    private static bool HasNonMemberGuardian(Member m) =>
+        !string.IsNullOrWhiteSpace(m.GuardianFirstName)
+        && !string.IsNullOrWhiteSpace(m.GuardianLastName)
+        && !string.IsNullOrWhiteSpace(m.GuardianEmail);
 
     private async Task<MembershipFee?> GetFeeAsync(int feeId)
     {

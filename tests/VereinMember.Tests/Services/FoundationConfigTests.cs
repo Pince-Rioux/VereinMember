@@ -8,6 +8,7 @@ using VereinMember.Services.Encryption;
 
 namespace VereinMember.Tests.Services;
 
+[Collection("StaticMembershipState")]
 public class FoundationConfigTests
 {
     private static string CreateValidKey() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
