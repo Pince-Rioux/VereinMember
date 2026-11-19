@@ -61,7 +61,7 @@
     </div>
     <div class="col-md-4">
         <label class="form-label">Status</label>
-        <input class="form-control" value="@Model.Member.Status" readonly disabled />
+        <input class="form-control" value="@MembershipDisplay.GetGermanStatus(Model.Member.Status)" readonly disabled />
     </div>
 
     <div class="col-12 mt-3">
@@ -93,10 +93,6 @@
     {
         <div class="col-12 mt-3">
             <h5 class="border-bottom pb-2">Familie</h5>
-        </div>
-        <div class="col-12">
-            <label class="form-label">Familiengruppe</label>
-            <input class="form-control" value="@Model.FamilyDisplayName" readonly disabled />
         </div>
         <div class="col-12">
             <div class="form-label">Familienmitglieder</div>

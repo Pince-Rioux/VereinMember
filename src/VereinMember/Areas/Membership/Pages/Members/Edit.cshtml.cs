@@ -61,7 +61,7 @@ public class EditModel(
         if (BirthYear.HasValue && BirthMonth.HasValue && BirthDay.HasValue)
         {
             try { Member.BirthDate = new DateTime(BirthYear.Value, BirthMonth.Value, BirthDay.Value); }
-            catch (ArgumentOutOfRangeException) { ModelState.AddModelError("Member.BirthDate", "Invalid date."); }
+            catch (ArgumentOutOfRangeException) { ModelState.AddModelError("Member.BirthDate", "Ungültiges Geburtsdatum."); }
         }
 
         Member.GuardianFirstName = string.IsNullOrWhiteSpace(Member.GuardianFirstName) ? null : Member.GuardianFirstName.Trim();
@@ -85,7 +85,7 @@ public class EditModel(
         {
             var performedBy = User.Identity?.Name ?? "system";
             var updated = await memberService.UpdateAsync(Member, performedBy);
-            TempData["Success"] = $"Member '{updated.FirstName} {updated.LastName}' updated successfully.";
+            TempData["Success"] = $"Mitglied „{updated.FirstName} {updated.LastName}“ erfolgreich aktualisiert.";
             return RedirectToPage("Index");
         }
         catch (InvalidOperationException ex)
@@ -120,8 +120,30 @@ public class EditModel(
             .Select(m => new SelectListItem { Value = m.Id.ToString(), Text = m.LastName + ", " + m.FirstName })
             .ToListAsync();
 
-        FamilyGroupOptions = await context.FamilyGroups
-            .Select(g => new SelectListItem { Value = g.Id.ToString(), Text = g.Name ?? "Family #" + g.Id })
+        var familyGroups = await context.FamilyGroups
+            .AsNoTracking()
+            .Include(g => g.Members)
+            .OrderBy(g => g.Id)
             .ToListAsync();
+
+        FamilyGroupOptions = familyGroups
+            .Select(g =>
+            {
+                var activeNames = g.Members
+                    .Where(m => m.Status != MemberStatus.Former)
+                    .OrderBy(m => m.LastName)
+                    .ThenBy(m => m.FirstName)
+                    .Select(m => $"{m.FirstName} {m.LastName}".Trim())
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Take(3)
+                    .ToList();
+                var hint = activeNames.Count > 0 ? string.Join(", ", activeNames) : null;
+                return new SelectListItem
+                {
+                    Value = g.Id.ToString(),
+                    Text = MembershipDisplay.FormatFamilyGroupLabel(g, hint)
+                };
+            })
+            .ToList();
     }
 }

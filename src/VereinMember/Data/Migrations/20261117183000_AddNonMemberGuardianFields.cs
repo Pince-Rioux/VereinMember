@@ -1,13 +1,9 @@
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using VereinMember.Data;
 
 #nullable disable
 
 namespace VereinMember.Data.Migrations;
 
-[DbContext(typeof(MembershipDbContext))]
-[Migration("20261117183000_AddNonMemberGuardianFields")]
 public partial class AddNonMemberGuardianFields : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
