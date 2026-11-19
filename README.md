@@ -17,7 +17,7 @@ Membership/
 │   └── DSGVO_SECURITY.md
 ├── src/
 │   └── VereinMember/   # Razor Class Library
-│       ├── Areas/Membership/  # Controllers, Pages, ViewModels
+│       ├── Areas/Membership/  # Pages, ViewModels (InputModels)
 │       ├── Data/              # DbContext, configurations, migrations
 │       ├── Models/            # Domain entities
 │       ├── Services/          # Business logic interfaces + implementations
@@ -87,7 +87,7 @@ The migration `AddRegistrationConsents` adds the corresponding storage.
 
 - .NET 8 + ASP.NET Core
 - Entity Framework Core 9 + SQL Server
-- Razor Pages + REST API
+- Razor Pages (Areas/Membership)
 - Piranha Identity (shared auth)
 - xUnit + WebApplicationFactory (testing)
 

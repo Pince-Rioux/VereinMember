@@ -27,18 +27,7 @@ public sealed class PageInputModelBindingTests : IDisposable
 
     public PageInputModelBindingTests()
     {
-        ServiceCollectionExtensions.Enabled = true;
-        MembershipEncryption.Initialize(new AesEncryptionService(TestEncryptionKey.Value));
-
-        var services = new ServiceCollection();
-        services.AddDbContext<MembershipDbContext>(options =>
-            options.UseInMemoryDatabase($"PageInputModels_{Guid.NewGuid()}"));
-        services.AddLogging();
-        services.AddScoped<IAuditService, AuditService>();
-        services.AddScoped<IMemberService, MemberService>();
-        services.AddScoped<IValidator<Member>, MemberValidator>();
-        services.AddScoped<IInvitationService, InvitationService>();
-        _provider = services.BuildServiceProvider();
+        _provider = TestDataBuilder.CreateServiceProvider("PageInputModels");
     }
 
     [Fact]

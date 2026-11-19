@@ -139,12 +139,12 @@ The audit log is **append-only** — no UPDATE or DELETE operations allowed on A
 
 ## 8. Data Subject Rights (Art. 15-21)
 
-| Right | Endpoint | SLA |
+| Right | Handler / Page | SLA |
 |---|---|---|
-| Right of access (Art. 15) | `GET /api/members/{id}/export` | Within 48h (automated) |
-| Right to rectification (Art. 16) | `PUT /api/members/{id}` | Immediate |
-| Right to erasure (Art. 17) | `DELETE /api/members/{id}/erasure` | Within 1 month; automated with confirmation |
-| Right to data portability (Art. 20) | `GET /api/members/{id}/export?format=json` | Same as access |
+| Right of access (Art. 15) | `POST /Membership/Members/Details/{id}?handler=Export` | Immediate (automated JSON download) |
+| Right to rectification (Art. 16) | `POST /Membership/Members/Edit/{id}` | Immediate |
+| Right to erasure (Art. 17) | `POST /Membership/Members/Details/{id}?handler=Erasure` | Within 1 month; automated with confirmation |
+| Right to data portability (Art. 20) | `POST /Membership/Members/Details/{id}?handler=Export` | Same as access |
 
 **Guardian-specific:** Erasure of a guardian is blocked while dependent Youth members exist (Art. 17(3)(b) — legal obligation).
 
