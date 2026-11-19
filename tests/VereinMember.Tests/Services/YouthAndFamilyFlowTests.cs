@@ -33,6 +33,7 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         services.AddLogging();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IMemberService, MemberService>();
+        services.AddScoped<IFamilyGroupService, FamilyGroupService>();
         services.AddScoped<IValidator<Member>, MemberValidator>();
         services.AddScoped<IInvitationService, InvitationService>();
         _provider = services.BuildServiceProvider();
@@ -290,7 +291,8 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         var created = await memberService.CreateFamilyAsync(m1, [m2], "admin");
         var groupId = created[0].FamilyGroupId!.Value;
 
-        (await memberService.DissolveFamilyGroupAsync(groupId, "admin@verein.de")).Should().BeTrue();
+        var familyGroupService = scope.ServiceProvider.GetRequiredService<IFamilyGroupService>();
+        (await familyGroupService.DissolveFamilyGroupAsync(groupId, "admin@verein.de")).Should().BeTrue();
         (await context.FamilyGroups.CountAsync(g => g.Id == groupId)).Should().Be(0);
 
         (await memberService.SoftDeleteAsync(created[0].Id, "admin@verein.de")).Should().BeTrue();
@@ -356,9 +358,10 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         var validator = scope.ServiceProvider.GetRequiredService<IValidator<Member>>();
         var (_, familyFee) = await SeedFeesAsync(context);
 
-        var group1 = await memberService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
-        var group2 = await memberService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
-        var unnamedGroup = await memberService.CreateFamilyGroupAsync(null, "admin@verein.de");
+        var familyGroupService = scope.ServiceProvider.GetRequiredService<IFamilyGroupService>();
+        var group1 = await familyGroupService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
+        var group2 = await familyGroupService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
+        var unnamedGroup = await familyGroupService.CreateFamilyGroupAsync(null, "admin@verein.de");
 
         context.Members.AddRange(
             new Member
@@ -439,6 +442,47 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             .Should().Be("Familie Becker (#7)");
         MembershipDisplay.FormatFamilyGroupLabel(new FamilyGroup { Id = 8, Name = null }, "Eva Becker")
             .Should().Be("Familie #8 – Eva Becker");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_YouthToAdult_ClearsNonMemberGuardianFields()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var (youthFee, _) = await SeedFeesAsync(context);
+        var adultFee = new MembershipFee
+        {
+            Name = "Erwachsene",
+            Amount = 80m,
+            Interval = FeeInterval.Yearly,
+            Category = FeeCategory.Adult
+        };
+        context.MembershipFees.Add(adultFee);
+        await context.SaveChangesAsync();
+
+        var created = await memberService.CreateAsync(new Member
+        {
+            FirstName = "Lena",
+            LastName = "Jung",
+            Email = "lena.adult@example.com",
+            BirthDate = new DateTime(2008, 4, 1),
+            MembershipFeeId = youthFee.Id,
+            GuardianFirstName = "Stefan",
+            GuardianLastName = "Jung",
+            GuardianEmail = "stefan.jung@example.com",
+            GuardianPhone = "+49171111222"
+        }, "admin@verein.de");
+
+        created.MembershipFeeId = adultFee.Id;
+        var updated = await memberService.UpdateAsync(created, "admin@verein.de");
+
+        updated.GuardianMemberId.Should().BeNull();
+        updated.GuardianFirstName.Should().BeNull();
+        updated.GuardianLastName.Should().BeNull();
+        updated.GuardianEmail.Should().BeNull();
+        updated.GuardianPhone.Should().BeNull();
+        updated.FamilyGroupId.Should().BeNull();
     }
 
     private sealed class TestTempDataProvider : ITempDataProvider

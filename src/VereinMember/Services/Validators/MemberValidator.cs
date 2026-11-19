@@ -64,7 +64,7 @@ public class MemberValidator : AbstractValidator<Member>
 
         // Category-specific: Guardian required for Youth (either an existing Adult member OR non-member guardian contact)
         RuleFor(m => m)
-            .Must(m => m.GuardianMemberId.HasValue || HasNonMemberGuardian(m))
+            .Must(m => m.GuardianMemberId.HasValue || MemberCategoryRules.HasNonMemberGuardian(m))
             .WithName("GuardianMemberId")
             .WithMessage("A guardian is required for Youth members.")
             .WhenAsync(async (m, _) =>
@@ -106,11 +106,6 @@ public class MemberValidator : AbstractValidator<Member>
                 return fee?.Category != FeeCategory.Family;
             });
     }
-
-    private static bool HasNonMemberGuardian(Member m) =>
-        !string.IsNullOrWhiteSpace(m.GuardianFirstName)
-        && !string.IsNullOrWhiteSpace(m.GuardianLastName)
-        && !string.IsNullOrWhiteSpace(m.GuardianEmail);
 
     private async Task<MembershipFee?> GetFeeAsync(int feeId)
     {

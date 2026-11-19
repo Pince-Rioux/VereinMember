@@ -13,18 +13,18 @@ namespace VereinMember.Areas.Membership.Controllers;
 [Route("membership/api/family-groups")]
 public class FamilyGroupsController : ControllerBase
 {
-    private readonly IMemberService _memberService;
+    private readonly IFamilyGroupService _familyGroupService;
 
-    public FamilyGroupsController(IMemberService memberService)
+    public FamilyGroupsController(IFamilyGroupService familyGroupService)
     {
-        _memberService = memberService;
+        _familyGroupService = familyGroupService;
     }
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> GetAll()
     {
-        var groups = await _memberService.GetAllFamilyGroupsAsync();
+        var groups = await _familyGroupService.GetAllFamilyGroupsAsync();
         return Ok(groups.Select(g => FamilyGroupResponseDto.FromFamilyGroup(g, includeInternalNotes: true)).ToList());
     }
 
@@ -32,7 +32,7 @@ public class FamilyGroupsController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> GetById(int id)
     {
-        var group = await _memberService.GetFamilyGroupByIdAsync(id);
+        var group = await _familyGroupService.GetFamilyGroupByIdAsync(id);
         if (group == null)
             return NotFound();
 
@@ -43,7 +43,7 @@ public class FamilyGroupsController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> Create([FromBody] CreateFamilyGroupRequestDto request)
     {
-        var created = await _memberService.CreateFamilyGroupAsync(
+        var created = await _familyGroupService.CreateFamilyGroupAsync(
             request.Name, User.Identity?.Name ?? "system");
 
         return CreatedAtAction(
@@ -58,7 +58,7 @@ public class FamilyGroupsController : ControllerBase
     {
         try
         {
-            var group = await _memberService.AddMemberToFamilyGroupAsync(memberId, familyGroupId);
+            var group = await _familyGroupService.AddMemberToFamilyGroupAsync(memberId, familyGroupId);
             return Ok(FamilyGroupResponseDto.FromFamilyGroup(group, includeInternalNotes: true));
         }
         catch (KeyNotFoundException ex)
@@ -87,7 +87,7 @@ public class FamilyGroupsController : ControllerBase
     {
         try
         {
-            var group = await _memberService.RemoveMemberFromFamilyGroupAsync(memberId);
+            var group = await _familyGroupService.RemoveMemberFromFamilyGroupAsync(memberId);
             return Ok(FamilyGroupResponseDto.FromFamilyGroup(group, includeInternalNotes: true));
         }
         catch (KeyNotFoundException ex)
@@ -116,7 +116,7 @@ public class FamilyGroupsController : ControllerBase
     {
         try
         {
-            var result = await _memberService.DeleteFamilyGroupAsync(id);
+            var result = await _familyGroupService.DeleteFamilyGroupAsync(id);
             if (!result)
                 return NotFound();
 
@@ -137,7 +137,7 @@ public class FamilyGroupsController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> Dissolve(int id)
     {
-        var result = await _memberService.DissolveFamilyGroupAsync(id, User.Identity?.Name ?? "system");
+        var result = await _familyGroupService.DissolveFamilyGroupAsync(id, User.Identity?.Name ?? "system");
         if (!result)
             return NotFound();
 

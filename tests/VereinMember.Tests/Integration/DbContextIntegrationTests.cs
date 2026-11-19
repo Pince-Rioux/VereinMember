@@ -281,7 +281,8 @@ public sealed class DbContextIntegrationTests : IClassFixture<DbFixture>
         context.Members.Add(m);
         await context.SaveChangesAsync();
 
-        var act = () => service.RemoveMemberFromFamilyGroupAsync(m.Id);
+        var familyGroupService = new FamilyGroupService(context, auditMock.Object);
+        var act = () => familyGroupService.RemoveMemberFromFamilyGroupAsync(m.Id);
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*at least 2*");
     }

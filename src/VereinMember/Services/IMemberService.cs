@@ -12,7 +12,6 @@ public interface IMemberService
     /// </summary>
     Task<Member?> GetByEmailAsync(string email);
 
-    Task<List<Member>> GetAllAsync();
     Task<(List<Member> Items, int TotalCount)> SearchAsync(
         string? searchTerm, MemberStatus? status, int? departmentId,
         FeeCategory? feeCategory, int page, int pageSize);
@@ -43,20 +42,4 @@ public interface IMemberService
     /// DSGVO right to erasure - hard-deletes personal data while keeping anonymous audit reference.
     /// </summary>
     Task ErasureAsync(int id, string performedBy);
-
-    // Family group methods
-    Task<List<FamilyGroup>> GetAllFamilyGroupsAsync();
-    Task<FamilyGroup?> GetFamilyGroupByIdAsync(int id);
-
-    /// <summary>
-    /// Returns the members of a family group for display on a member's own profile.
-    /// Excludes former members and orders by name.
-    /// </summary>
-    Task<List<FamilyMemberSummary>> GetFamilyMembersAsync(int familyGroupId);
-
-    Task<FamilyGroup> CreateFamilyGroupAsync(string? name, string createdBy);
-    Task<FamilyGroup> AddMemberToFamilyGroupAsync(int memberId, int familyGroupId);
-    Task<FamilyGroup> RemoveMemberFromFamilyGroupAsync(int memberId);
-    Task<bool> DeleteFamilyGroupAsync(int id);
-    Task<bool> DissolveFamilyGroupAsync(int id, string performedBy);
 }

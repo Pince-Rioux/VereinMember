@@ -94,58 +94,15 @@ public class PurgeService : BackgroundService
 
         foreach (var member in expiredMembers)
         {
-            var originalEmail = member.Email;
-
-            // Remove invitations and Identity account before overwriting email
-            var invitations = await context.Invitations
-                .Where(i => i.MemberId == member.Id)
-                .ToListAsync(ct);
-            if (invitations.Count > 0)
-                context.Invitations.RemoveRange(invitations);
-
-            if (!string.IsNullOrWhiteSpace(originalEmail))
-            {
-                var identityUsers = await context.Users
-                    .Where(u => u.Email == originalEmail)
-                    .ToListAsync(ct);
-                if (identityUsers.Count > 0)
-                    context.Users.RemoveRange(identityUsers);
-            }
-
-            // Erase personal data without copying PII into AuditLog
-            member.FirstName = "[erased]";
-            member.LastName = "[erased]";
-            member.Email = $"[erased-{member.Id}]@verein.de";
-            member.Phone = null;
-            member.BirthDate = DateTime.MinValue;
-            member.Street = null;
-            member.City = null;
-            member.ZipCode = null;
-            member.Country = null;
-            member.BankIban = null;
-            member.BankBic = null;
-            member.PrivacyConsentedAt = null;
-            member.PrivacyConsentTextVersion = null;
-            member.PrivacyConsentIp = null;
-            member.SepaMandateConsentedAt = null;
-            member.SepaMandateTextVersion = null;
-            member.Notes = null;
-            member.GuardianMemberId = null;
-            member.GuardianFirstName = null;
-            member.GuardianLastName = null;
-            member.GuardianEmail = null;
-            member.GuardianPhone = null;
-            member.FamilyGroupId = null;
-            member.DepartmentId = null;
-            member.UpdatedAt = DateTime.UtcNow;
-
-            await auditService.LogAsync(
-                nameof(Member), member.Id, "Purge",
-                null, null,
-                nameof(Member), "system");
+            await MemberErasureHelper.EraseMemberPersonalDataAsync(
+                context,
+                auditService,
+                member,
+                auditAction: "Purge",
+                performedBy: "system",
+                preserveLeftAt: true,
+                ct: ct);
         }
-
-        await context.SaveChangesAsync(ct);
 
         _logger.LogInformation("Purge: erased {Count} expired member records.", expiredMembers.Count);
         return expiredMembers.Count;

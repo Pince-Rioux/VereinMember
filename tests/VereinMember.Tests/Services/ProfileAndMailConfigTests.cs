@@ -27,6 +27,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         services.AddDbContext<MembershipDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IMemberService, MemberService>();
+        services.AddScoped<IFamilyGroupService, FamilyGroupService>();
         _provider = services.BuildServiceProvider();
     }
 
@@ -86,7 +87,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
         var member = await SeedMemberAsync(context);
 
-        var getModel = new ProfileModel(memberService)
+        var getModel = new ProfileModel(memberService, Mock.Of<IFamilyGroupService>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
         };
@@ -97,7 +98,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
 
         // Post only Input fields (simulating real browser form where disabled Email/Fee/Status are omitted)
         context.ChangeTracker.Clear();
-        var postModel = new ProfileModel(memberService)
+        var postModel = new ProfileModel(memberService, Mock.Of<IFamilyGroupService>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } },
             TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
@@ -173,7 +174,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
 
         await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
-        var model = new ProfileModel(memberService)
+        var model = new ProfileModel(memberService, Mock.Of<IFamilyGroupService>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
         };
@@ -192,7 +193,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
         var memberA = await SeedMemberAsync(context, "a@example.com");
 
-        var postModel = new ProfileModel(memberService)
+        var postModel = new ProfileModel(memberService, Mock.Of<IFamilyGroupService>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(memberA.Email) } },
             Input = new ProfileModel.ProfileUpdateInputModel
@@ -215,7 +216,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
         var member = await SeedMemberAsync(context, "invalid.state@example.com");
 
-        var postModel = new ProfileModel(memberService)
+        var postModel = new ProfileModel(memberService, Mock.Of<IFamilyGroupService>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } },
             Input = new ProfileModel.ProfileUpdateInputModel
@@ -298,7 +299,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
 
-        var model = new ProfileModel(memberService)
+        var model = new ProfileModel(memberService, scope.ServiceProvider.GetRequiredService<IFamilyGroupService>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
         };
@@ -320,7 +321,7 @@ public sealed class ProfileAndMailConfigTests : IDisposable
         var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
         var member = await SeedMemberAsync(context, "no.family@example.com");
 
-        var model = new ProfileModel(memberService)
+        var model = new ProfileModel(memberService, Mock.Of<IFamilyGroupService>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = CreateUser(member.Email) } }
         };
