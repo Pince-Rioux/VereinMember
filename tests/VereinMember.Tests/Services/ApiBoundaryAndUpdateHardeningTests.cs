@@ -1,6 +1,7 @@
 using VereinMember.Tests.Fixtures;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
@@ -12,13 +13,13 @@ using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using VereinMail;
-using VereinMember.Areas.Membership.Controllers;
-using VereinMember.Areas.Membership.Dtos;
 using VereinMember.Areas.Membership.Pages;
+using VereinMember.Areas.Membership.Pages.Members;
 using VereinMember.Data.EntityConfigurations;
 using VereinMember.Extensions;
 using VereinMember.Services.Encryption;
@@ -134,72 +135,59 @@ public sealed class ApiBoundaryAndUpdateHardeningTests : IDisposable
     }
 
     [Fact]
-    public async Task MembersController_ViewerRole_ReceivesMaskedIbanAndNoNotes_WhileEditorReceivesNotes()
+    public void VereinMemberAssembly_HasNoRestApiControllers()
     {
-        using var scope = _provider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
-        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
-        var validator = scope.ServiceProvider.GetRequiredService<IValidator<Member>>();
-        var (_, member) = await SeedAdultMemberAsync(context, "dto-scope@example.com");
+        var controllerTypes = typeof(DetailsModel).Assembly
+            .GetTypes()
+            .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract)
+            .ToList();
 
-        var controller = new MembersController(memberService, validator)
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = new DefaultHttpContext { User = CreatePrincipal("trainer@verein.de", "Viewer") }
-            }
-        };
-
-        var viewerAction = await controller.GetById(member.Id);
-        var viewerOk = viewerAction.Should().BeOfType<OkObjectResult>().Subject;
-        var viewerJson = JsonSerializer.Serialize(viewerOk.Value);
-
-        viewerJson.Should().NotContain("DE89370400440532013000");
-        viewerJson.Should().NotContain("COBADEFFXXX");
-        viewerJson.Should().NotContain("203.0.113.42");
-        viewerJson.Should().NotContain("Confidential board note");
-        var viewerDto = viewerOk.Value.Should().BeOfType<MemberResponseDto>().Subject;
-        viewerDto.BankIbanMasked.Should().Be("DE••••••••••••3000");
-        viewerDto.HasBankDetails.Should().BeTrue();
-        viewerDto.Notes.Should().BeNull();
-
-        controller.ControllerContext.HttpContext.User = CreatePrincipal("editor@verein.de", "Editor");
-        var editorAction = await controller.GetById(member.Id);
-        var editorDto = editorAction.Should().BeOfType<OkObjectResult>().Subject.Value.Should().BeOfType<MemberResponseDto>().Subject;
-        editorDto.Notes.Should().Be("Confidential board note");
-        editorDto.BankIbanMasked.Should().Be("DE••••••••••••3000");
+        controllerTypes.Should().BeEmpty("all REST API and legacy MVC controllers were removed in R5");
     }
 
     [Fact]
-    public async Task MembersController_GuardianCandidatesAndExportPolicy_DoNotLeakExtraPii()
+    public async Task DetailsPage_ExportAndErasure_EnforceRoleAuthorizationAndMaskIban()
     {
         using var scope = _provider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
         var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
-        var validator = scope.ServiceProvider.GetRequiredService<IValidator<Member>>();
-        await SeedAdultMemberAsync(context, "guardian-dto@example.com");
+        var (_, member) = await SeedAdultMemberAsync(context, "details-export@example.com");
 
-        var controller = new MembersController(memberService, validator)
+        DetailsModel CreateDetailsModel(string user, params string[] roles)
         {
-            ControllerContext = new ControllerContext
+            var httpContext = new DefaultHttpContext { User = CreatePrincipal(user, roles) };
+            return new DetailsModel(memberService)
             {
-                HttpContext = new DefaultHttpContext { User = CreatePrincipal("editor@verein.de", "Editor") }
-            }
-        };
+                PageContext = new PageContext { HttpContext = httpContext },
+                TempData = new TempDataDictionary(httpContext, new Mock<ITempDataProvider>().Object)
+            };
+        }
 
-        var result = await controller.GetGuardianCandidates();
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        var json = JsonSerializer.Serialize(ok.Value);
-        json.Should().Contain("Beispiel, Anna");
-        json.Should().NotContain("guardian-dto@example.com");
+        // Viewer cannot export or erase
+        var viewerModel = CreateDetailsModel("trainer@verein.de", "Viewer");
+        (await viewerModel.OnPostExportAsync(member.Id)).Should().BeOfType<ForbidResult>();
+        (await viewerModel.OnPostErasureAsync(member.Id)).Should().BeOfType<ForbidResult>();
+
+        // Editor can export (with masked IBAN), but cannot erase
+        var editorModel = CreateDetailsModel("editor@verein.de", "Editor");
+        var exportResult = await editorModel.OnPostExportAsync(member.Id);
+        var fileResult = exportResult.Should().BeOfType<FileContentResult>().Subject;
+        fileResult.ContentType.Should().Be("application/json");
+        var json = Encoding.UTF8.GetString(fileResult.FileContents);
+        var expectedMaskedIban = "DE" + new string('\u2022', 16) + "3000";
+        var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("personalData").GetProperty("bankInfo").GetString().Should().Be(expectedMaskedIban);
         json.Should().NotContain("DE89370400440532013000");
+        json.Should().NotContain("COBADEFFXXX");
+        (await editorModel.OnPostErasureAsync(member.Id)).Should().BeOfType<ForbidResult>();
 
-        var exportAuth = typeof(MembersController)
-            .GetMethod(nameof(MembersController.Export))!
-            .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
-            .Cast<AuthorizeAttribute>()
-            .Single();
-        exportAuth.Policy.Should().Be(AuthorizationPolicies.MemberWrite);
+        // Admin can erase via Razor Page handler
+        var adminModel = CreateDetailsModel("admin@verein.de", "Admin");
+        var erasureResult = await adminModel.OnPostErasureAsync(member.Id);
+        erasureResult.Should().BeOfType<RedirectToPageResult>().Which.PageName.Should().Be("Index");
+        var erased = await context.Members.AsNoTracking().SingleAsync(m => m.Id == member.Id);
+        erased.FirstName.Should().Be("[erased]");
+        erased.BankIban.Should().BeNull();
     }
 
     [Fact]

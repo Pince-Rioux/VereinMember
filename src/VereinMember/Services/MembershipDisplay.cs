@@ -34,4 +34,16 @@ public static class MembershipDisplay
             ? baseName
             : $"{baseName} – {memberHint}";
     }
+
+    public static string? MaskIban(string? iban)
+    {
+        if (string.IsNullOrWhiteSpace(iban))
+            return null;
+
+        var compact = new string(iban.Where(c => !char.IsWhiteSpace(c)).ToArray());
+        if (compact.Length <= 6)
+            return new string('•', compact.Length);
+
+        return $"{compact[..2]}{new string('•', compact.Length - 6)}{compact[^4..]}";
+    }
 }
