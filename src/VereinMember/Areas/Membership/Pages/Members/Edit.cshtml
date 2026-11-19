@@ -9,84 +9,88 @@
 <h1>Mitglied bearbeiten</h1>
 
 <form method="post" class="row g-3">
-    <input type="hidden" asp-for="Member.Id" />
-    <input type="hidden" asp-for="Member.ConcurrencyToken" />
+    <div asp-validation-summary="ModelOnly" class="text-danger col-12"></div>
+    <input type="hidden" asp-for="Input.Id" />
+    <input type="hidden" asp-for="Input.ConcurrencyToken" />
 
     <div class="col-md-6">
-        <label asp-for="Member.FirstName" class="form-label"></label>
-        <input asp-for="Member.FirstName" class="form-control" />
-        <span asp-validation-for="Member.FirstName" class="text-danger"></span>
+        <label asp-for="Input.FirstName" class="form-label"></label>
+        <input asp-for="Input.FirstName" class="form-control" />
+        <span asp-validation-for="Input.FirstName" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.LastName" class="form-label"></label>
-        <input asp-for="Member.LastName" class="form-control" />
-        <span asp-validation-for="Member.LastName" class="text-danger"></span>
+        <label asp-for="Input.LastName" class="form-label"></label>
+        <input asp-for="Input.LastName" class="form-control" />
+        <span asp-validation-for="Input.LastName" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.Email" class="form-label"></label>
-        <input asp-for="Member.Email" class="form-control" />
-        <span asp-validation-for="Member.Email" class="text-danger"></span>
+        <label asp-for="Input.Email" class="form-label"></label>
+        <input asp-for="Input.Email" class="form-control" />
+        <span asp-validation-for="Input.Email" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.Phone" class="form-label"></label>
-        <input asp-for="Member.Phone" class="form-control" />
-        <span asp-validation-for="Member.Phone" class="text-danger"></span>
+        <label asp-for="Input.Phone" class="form-label"></label>
+        <input asp-for="Input.Phone" class="form-control" />
+        <span asp-validation-for="Input.Phone" class="text-danger"></span>
     </div>
     <div class="col-md-6">
         <label class="form-label">Geburtsdatum</label>
-        <partial name="_DateSelects" model='new DateSelectsViewModel("Birth", Model.BirthDay, Model.BirthMonth, Model.BirthYear, "form-select", "Birth")' />
-        <span asp-validation-for="Member.BirthDate" class="text-danger"></span>
+        <partial name="_DateSelects" model='new DateSelectsViewModel("Input.Birth", Model.Input.BirthDay, Model.Input.BirthMonth, Model.Input.BirthYear, "form-select", "Input_Birth")' />
+        <span asp-validation-for="Input.BirthDate" class="text-danger"></span>
     </div>
     <div class="col-md-4">
-        <label asp-for="Member.MembershipFeeId" class="form-label"></label>
-        <select asp-for="Member.MembershipFeeId" asp-items="Model.FeeOptions" class="form-select">
+        <label asp-for="Input.MembershipFeeId" class="form-label"></label>
+        <select asp-for="Input.MembershipFeeId" asp-items="Model.FeeOptions" class="form-select">
             <option value="">Bitte wählen...</option>
         </select>
-        <span asp-validation-for="Member.MembershipFeeId" class="text-danger"></span>
+        <span asp-validation-for="Input.MembershipFeeId" class="text-danger"></span>
     </div>
     <div class="col-md-4">
-        <label asp-for="Member.DepartmentId" class="form-label"></label>
-        <select asp-for="Member.DepartmentId" asp-items="Model.DepartmentOptions" class="form-select">
+        <label asp-for="Input.DepartmentId" class="form-label"></label>
+        <select asp-for="Input.DepartmentId" asp-items="Model.DepartmentOptions" class="form-select">
             <option value="">Keine Abteilung</option>
         </select>
     </div>
     <partial name="_GuardianFields" model='new GuardianFieldsViewModel(
         ShowMemberSelector: true,
-        GuardianMemberId: Model.Member.GuardianMemberId,
+        GuardianMemberId: Model.Input.GuardianMemberId,
         GuardianOptions: Model.GuardianOptions,
-        GuardianFirstName: Model.Member.GuardianFirstName,
-        GuardianLastName: Model.Member.GuardianLastName,
-        GuardianEmail: Model.Member.GuardianEmail,
-        GuardianPhone: Model.Member.GuardianPhone,
-        FieldPrefix: "Member.",
+        GuardianFirstName: Model.Input.GuardianFirstName,
+        GuardianLastName: Model.Input.GuardianLastName,
+        GuardianEmail: Model.Input.GuardianEmail,
+        GuardianPhone: Model.Input.GuardianPhone,
+        FieldPrefix: "Input.",
         InitiallyHidden: false,
         KeepVisibleIfPopulated: true,
         HeadingText: "Erziehungsberechtigter (bei Jugendmitgliedschaft)",
         HeadingClass: "border-bottom pb-2 mt-2")' />
     <div class="col-md-6">
-        <label asp-for="Member.FamilyGroupId" class="form-label">Familie</label>
-        <select asp-for="Member.FamilyGroupId" asp-items="Model.FamilyGroupOptions" class="form-select">
+        <label asp-for="Input.FamilyGroupId" class="form-label">Familie</label>
+        <select asp-for="Input.FamilyGroupId" asp-items="Model.FamilyGroupOptions" class="form-select">
             <option value="">Familie wählen...</option>
         </select>
-        <span asp-validation-for="Member.FamilyGroupId" class="text-danger"></span>
+        <span asp-validation-for="Input.FamilyGroupId" class="text-danger"></span>
     </div>
     <partial name="_AddressFields" model='new AddressFieldsViewModel(
-        Model.Member.Street,
-        Model.Member.ZipCode,
-        Model.Member.City,
-        Model.Member.Country,
+        Model.Input.Street,
+        Model.Input.ZipCode,
+        Model.Input.City,
+        Model.Input.Country,
+        FieldPrefix: "Input.",
         ShowHeading: false)' />
     <div class="col-md-12">
-        <label asp-for="Member.Notes" class="form-label"></label>
-        <textarea asp-for="Member.Notes" class="form-control" rows="3"></textarea>
+        <label asp-for="Input.Notes" class="form-label"></label>
+        <textarea asp-for="Input.Notes" class="form-control" rows="3"></textarea>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.BankIban" class="form-label"></label>
-        <input asp-for="Member.BankIban" class="form-control" />
+        <label asp-for="Input.BankIban" class="form-label"></label>
+        <input asp-for="Input.BankIban" class="form-control" />
+        <span asp-validation-for="Input.BankIban" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.BankBic" class="form-label"></label>
-        <input asp-for="Member.BankBic" class="form-control" />
+        <label asp-for="Input.BankBic" class="form-label"></label>
+        <input asp-for="Input.BankBic" class="form-control" />
+        <span asp-validation-for="Input.BankBic" class="text-danger"></span>
     </div>
     <div class="col-12">
         <button type="submit" class="btn btn-primary">Speichern</button>

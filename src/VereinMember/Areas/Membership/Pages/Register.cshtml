@@ -30,37 +30,37 @@
     </div>
 
     <div class="col-md-6">
-        <label asp-for="Member.FirstName" class="form-label"></label>
-        <input asp-for="Member.FirstName" class="form-control" />
-        <span asp-validation-for="Member.FirstName" class="text-danger"></span>
+        <label asp-for="Input.FirstName" class="form-label"></label>
+        <input asp-for="Input.FirstName" class="form-control" />
+        <span asp-validation-for="Input.FirstName" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.LastName" class="form-label"></label>
-        <input asp-for="Member.LastName" class="form-control" />
-        <span asp-validation-for="Member.LastName" class="text-danger"></span>
+        <label asp-for="Input.LastName" class="form-label"></label>
+        <input asp-for="Input.LastName" class="form-control" />
+        <span asp-validation-for="Input.LastName" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.Email" class="form-label"></label>
-        <input asp-for="Member.Email" class="form-control" type="email" />
-        <span asp-validation-for="Member.Email" class="text-danger"></span>
+        <label asp-for="Input.Email" class="form-label"></label>
+        <input asp-for="Input.Email" class="form-control" type="email" />
+        <span asp-validation-for="Input.Email" class="text-danger"></span>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.Phone" class="form-label"></label>
-        <input asp-for="Member.Phone" class="form-control" type="tel" />
-        <span asp-validation-for="Member.Phone" class="text-danger"></span>
+        <label asp-for="Input.Phone" class="form-label"></label>
+        <input asp-for="Input.Phone" class="form-control" type="tel" />
+        <span asp-validation-for="Input.Phone" class="text-danger"></span>
     </div>
 
     <div class="col-md-6">
         <label class="form-label">Geburtsdatum</label>
-        <partial name="_DateSelects" model='new DateSelectsViewModel("Birth", Model.BirthDay, Model.BirthMonth, Model.BirthYear, "form-select", "Birth")' />
-        <span asp-validation-for="Member.BirthDate" class="text-danger"></span>
+        <partial name="_DateSelects" model='new DateSelectsViewModel("Input.Birth", Model.Input.BirthDay, Model.Input.BirthMonth, Model.Input.BirthYear, "form-select", "Input_Birth")' />
+        <span asp-validation-for="Input.BirthDate" class="text-danger"></span>
     </div>
     <div class="col-md-4">
-        <label asp-for="Member.MembershipFeeId" class="form-label">Beitragsgruppe</label>
-        <select asp-for="Member.MembershipFeeId" asp-items="Model.FeeOptions" class="form-select">
+        <label asp-for="Input.MembershipFeeId" class="form-label">Beitragsgruppe</label>
+        <select asp-for="Input.MembershipFeeId" asp-items="Model.FeeOptions" class="form-select">
             <option value="">Bitte wählen…</option>
         </select>
-        <span asp-validation-for="Member.MembershipFeeId" class="text-danger"></span>
+        <span asp-validation-for="Input.MembershipFeeId" class="text-danger"></span>
     </div>
 
     @* Guardian section (shown when Youth is selected) *@
@@ -68,11 +68,11 @@
         ShowMemberSelector: false,
         GuardianMemberId: null,
         GuardianOptions: null,
-        GuardianFirstName: Model.GuardianFirstName,
-        GuardianLastName: Model.GuardianLastName,
-        GuardianEmail: Model.GuardianEmail,
-        GuardianPhone: Model.GuardianPhone,
-        FieldPrefix: "",
+        GuardianFirstName: Model.Input.GuardianFirstName,
+        GuardianLastName: Model.Input.GuardianLastName,
+        GuardianEmail: Model.Input.GuardianEmail,
+        GuardianPhone: Model.Input.GuardianPhone,
+        FieldPrefix: "Input.",
         InitiallyHidden: true,
         KeepVisibleIfPopulated: false,
         HeadingText: "Erziehungsberechtigter",
@@ -110,10 +110,11 @@
         ShowHrBefore: false)' />
 
     <partial name="_AddressFields" model='new AddressFieldsViewModel(
-        Model.Member.Street,
-        Model.Member.ZipCode,
-        Model.Member.City,
-        Model.Member.Country,
+        Model.Input.Street,
+        Model.Input.ZipCode,
+        Model.Input.City,
+        Model.Input.Country,
+        FieldPrefix: "Input.",
         ShowHeading: true)' />
 
     @* Zahlungsinformationen *@
@@ -121,15 +122,15 @@
         <h5 class="border-bottom pb-2">Zahlungsinformationen</h5>
     </div>
     <div class="col-md-6">
-        <label asp-for="Member.BankIban" class="form-label">IBAN</label>
-        <input asp-for="Member.BankIban" class="form-control" placeholder="DE00 0000 0000 0000 0000 00" required />
-        <span asp-validation-for="Member.BankIban" class="text-danger"></span>
+        <label asp-for="Input.BankIban" class="form-label">IBAN</label>
+        <input asp-for="Input.BankIban" class="form-control" placeholder="DE00 0000 0000 0000 0000 00" required />
+        <span asp-validation-for="Input.BankIban" class="text-danger"></span>
     </div>
     <div class="col-md-4">
-        <label asp-for="Member.BankBic" class="form-label">BIC</label>
-        <input asp-for="Member.BankBic" class="form-control" />
+        <label asp-for="Input.BankBic" class="form-label">BIC</label>
+        <input asp-for="Input.BankBic" class="form-control" />
         <div class="form-text">Für deutsche IBANs nicht erforderlich.</div>
-        <span asp-validation-for="Member.BankBic" class="text-danger"></span>
+        <span asp-validation-for="Input.BankBic" class="text-danger"></span>
     </div>
 
     @* Keep the displayed legal texts in sync with the text versions in RegisterModel. *@
@@ -140,8 +141,8 @@
             Bitte lesen Sie auch unsere <a href="/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a>.
         </p>
         <div class="form-check">
-            <input asp-for="PrivacyConsented" class="form-check-input" required />
-            <label class="form-check-label" asp-for="PrivacyConsented">
+            <input asp-for="Input.PrivacyConsented" class="form-check-input" required />
+            <label class="form-check-label" asp-for="Input.PrivacyConsented">
                 Ich bin widerruflich damit einverstanden, dass alle von mir angegebenen persönlichen und sachlichen
                 Daten vom VC Neusäß elektronisch erhoben, verarbeitet, genutzt und an Mitglieder des Vereins
                 weitergegeben werden dürfen.
@@ -150,21 +151,21 @@
                 mitzuteilen. Der Mitgliedsbeitrag ist bis zum 31.01. des laufenden Jahres oder bei Eintritt nach diesem
                 Datum sofort mittels SEPA-Lastschriftmandat zu entrichten.
             </label>
-            <span asp-validation-for="PrivacyConsented" class="text-danger d-block"></span>
+            <span asp-validation-for="Input.PrivacyConsented" class="text-danger d-block"></span>
         </div>
     </div>
 
     <div class="col-12 mt-3">
         <h5 class="border-bottom pb-2">SEPA-Lastschriftmandat</h5>
         <div class="form-check">
-            <input asp-for="SepaMandateConsented" class="form-check-input" required />
-            <label class="form-check-label" asp-for="SepaMandateConsented">
+            <input asp-for="Input.SepaMandateConsented" class="form-check-input" required />
+            <label class="form-check-label" asp-for="Input.SepaMandateConsented">
                 Hiermit ermächtige ich den VC Neusäß e.V. widerruflich, den satzungsmäßigen
                 Mitgliedsbeitrag wiederkehrend zu Lasten meines nachstehenden Kontos mittels
                 Lastschrift einzuziehen. Zugleich weise ich mein Kreditinstitut an, die auf mein Konto
                 gezogenen Lastschriften einzulösen.
             </label>
-            <span asp-validation-for="SepaMandateConsented" class="text-danger d-block"></span>
+            <span asp-validation-for="Input.SepaMandateConsented" class="text-danger d-block"></span>
         </div>
         <p class="mt-2 mb-0">
             <strong>Hinweis:</strong><br />

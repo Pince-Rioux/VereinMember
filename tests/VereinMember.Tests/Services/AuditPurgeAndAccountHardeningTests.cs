@@ -348,15 +348,16 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
             PageContext = new PageContext
             {
                 HttpContext = new DefaultHttpContext()
+            },
+            Input = new ActivateModel.ActivateInputModel
+            {
+                Token = invitation.Token,
+                Password = "alllowercase",
+                ConfirmPassword = "alllowercase"
             }
         };
 
         // Weak password (fails uppercase/digit policy) increments attempts, does not consume
-        model.PageContext.HttpContext.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
-        {
-            ["password"] = "alllowercase",
-            ["confirmPassword"] = "alllowercase"
-        });
         await model.OnPostAsync(invitation.Token);
 
         model.IsCompleted.Should().BeFalse();
@@ -371,13 +372,14 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
             PageContext = new PageContext
             {
                 HttpContext = new DefaultHttpContext()
+            },
+            Input = new ActivateModel.ActivateInputModel
+            {
+                Token = invitation.Token,
+                Password = "StrongPass1",
+                ConfirmPassword = "StrongPass1"
             }
         };
-        model2.PageContext.HttpContext.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
-        {
-            ["password"] = "StrongPass1",
-            ["confirmPassword"] = "StrongPass1"
-        });
         await model2.OnPostAsync(invitation.Token);
 
         model2.IsCompleted.Should().BeTrue();
@@ -389,13 +391,14 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
             PageContext = new PageContext
             {
                 HttpContext = new DefaultHttpContext()
+            },
+            Input = new ActivateModel.ActivateInputModel
+            {
+                Token = invitation.Token,
+                Password = "AnotherPass2",
+                ConfirmPassword = "AnotherPass2"
             }
         };
-        replayModel.PageContext.HttpContext.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
-        {
-            ["password"] = "AnotherPass2",
-            ["confirmPassword"] = "AnotherPass2"
-        });
         await replayModel.OnPostAsync(invitation.Token);
 
         replayModel.IsInvalid.Should().BeTrue();

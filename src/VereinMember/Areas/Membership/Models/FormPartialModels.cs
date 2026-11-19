@@ -15,7 +15,7 @@ public sealed record AddressFieldsViewModel(
     string? ZipCode,
     string? City,
     string? Country,
-    string FieldPrefix = "Member.",
+    string FieldPrefix = "Input.",
     bool ShowHeading = false);
 
 public sealed record GuardianFieldsViewModel(
@@ -26,7 +26,7 @@ public sealed record GuardianFieldsViewModel(
     string? GuardianLastName,
     string? GuardianEmail,
     string? GuardianPhone,
-    string FieldPrefix = "Member.",
+    string FieldPrefix = "Input.",
     bool InitiallyHidden = true,
     bool KeepVisibleIfPopulated = false,
     string HeadingText = "Erziehungsberechtigter",

@@ -64,7 +64,7 @@
                 }
 
                 <form method="post">
-                    <input type="hidden" name="token" value="@Model.Token" />
+                    <input type="hidden" asp-for="Input.Token" />
 
                     <div class="form-group">
                         <label>Vorname</label>
@@ -84,15 +84,15 @@
                     <hr />
 
                     <div class="form-group">
-                        <label for="password">Passwort</label>
-                        <input id="password" name="password" type="password" class="form-control" placeholder="Mindestens 8 Zeichen" required minlength="8" />
+                        <label asp-for="Input.Password">Passwort</label>
+                        <input asp-for="Input.Password" type="password" class="form-control" placeholder="Mindestens 8 Zeichen" required minlength="8" />
                         <small class="text-muted" style="display:block;margin-top:0.35rem;">
                             Anforderungen: mindestens 8 Zeichen, mindestens ein Großbuchstabe (A–Z), ein Kleinbuchstabe (a–z) und eine Ziffer (0–9). Sonderzeichen sind erlaubt, aber optional.
                         </small>
                     </div>
                     <div class="form-group">
-                        <label for="confirmPassword">Passwort wiederholen</label>
-                        <input id="confirmPassword" name="confirmPassword" type="password" class="form-control" placeholder="Passwort wiederholen" required />
+                        <label asp-for="Input.ConfirmPassword">Passwort wiederholen</label>
+                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control" placeholder="Passwort wiederholen" required />
                     </div>
                     <button type="submit" class="btn-primary">Registrierung abschließen</button>
                 </form>

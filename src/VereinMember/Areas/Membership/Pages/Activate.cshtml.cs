@@ -1,9 +1,10 @@
-using VereinMember.Extensions;
-using VereinMember.Models;
-using VereinMember.Services;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using VereinMember.Extensions;
+using VereinMember.Models;
+using VereinMember.Services;
 
 namespace VereinMember.Areas.Membership.Pages;
 
@@ -14,16 +15,19 @@ public class ActivateModel(
     IMemberAccountService accountService,
     UserManager<MembershipUser> userManager) : PageModel
 {
-    public string Token { get; set; } = string.Empty;
-    public string MemberFirstName { get; set; } = string.Empty;
-    public string MemberLastName { get; set; } = string.Empty;
-    public string MemberEmail { get; set; } = string.Empty;
-    public bool IsInvalid { get; set; }
-    public bool IsCompleted { get; set; }
+    [BindProperty]
+    public ActivateInputModel Input { get; set; } = new();
+
+    public string Token => Input.Token ?? string.Empty;
+    public string MemberFirstName { get; private set; } = string.Empty;
+    public string MemberLastName { get; private set; } = string.Empty;
+    public string MemberEmail { get; private set; } = string.Empty;
+    public bool IsInvalid { get; private set; }
+    public bool IsCompleted { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(string token)
     {
-        Token = token;
+        Input.Token = token;
 
         var invitation = await invitationService.ValidateTokenAsync(token);
         if (invitation?.Member == null)
@@ -38,11 +42,14 @@ public class ActivateModel(
         return Page();
     }
 
-    public async Task<IActionResult> OnPostAsync(string token)
+    public async Task<IActionResult> OnPostAsync(string? token = null)
     {
-        Token = token;
+        var effectiveToken = !string.IsNullOrWhiteSpace(Input.Token)
+            ? Input.Token
+            : (token ?? string.Empty);
+        Input.Token = effectiveToken;
 
-        var invitation = await invitationService.ValidateTokenAsync(token);
+        var invitation = await invitationService.ValidateTokenAsync(effectiveToken);
         if (invitation?.Member == null)
         {
             IsInvalid = true;
@@ -53,10 +60,9 @@ public class ActivateModel(
         MemberLastName = invitation.Member.LastName;
         MemberEmail = invitation.Member.Email;
 
-        var password = Request.Form["password"].ToString();
-        var confirmPassword = Request.Form["confirmPassword"].ToString();
+        var password = Input.Password ?? string.Empty;
+        var confirmPassword = Input.ConfirmPassword ?? string.Empty;
 
-        // Validate password
         if (string.IsNullOrWhiteSpace(password))
         {
             ModelState.AddModelError(string.Empty, "Bitte geben Sie ein Passwort ein.");
@@ -91,7 +97,10 @@ public class ActivateModel(
             if (!validation.Succeeded)
             {
                 foreach (var err in validation.Errors)
+                {
                     ModelState.AddModelError(string.Empty, err.Description);
+                }
+
                 await invitationService.RecordFailedAttemptAsync(invitation.Id);
                 return Page();
             }
@@ -114,5 +123,16 @@ public class ActivateModel(
 
         IsCompleted = true;
         return Page();
+    }
+
+    public sealed class ActivateInputModel
+    {
+        public string? Token { get; set; }
+
+        [Display(Name = "Passwort")]
+        public string? Password { get; set; }
+
+        [Display(Name = "Passwort wiederholen")]
+        public string? ConfirmPassword { get; set; }
     }
 }
