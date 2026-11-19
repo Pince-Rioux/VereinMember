@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using VereinMember.Areas.Membership.Pages;
+using VereinMember.Areas.Membership.ViewModels;
 using VereinMember.Data.EntityConfigurations;
 using VereinMember.Extensions;
 using VereinMember.Services.Encryption;
@@ -47,9 +48,9 @@ public sealed class RegistrationConsentTests : IDisposable
         var result = await model.OnPostAsync();
 
         result.Should().BeOfType<PageResult>();
-        model.ModelState[nameof(RegisterModel.PrivacyConsented)]!.Errors.Should().NotBeEmpty();
-        model.ModelState[nameof(RegisterModel.SepaMandateConsented)]!.Errors.Should().NotBeEmpty();
-        model.ModelState["Member.BankIban"]!.Errors.Should().NotBeEmpty();
+        model.ModelState["Input.PrivacyConsented"]!.Errors.Should().NotBeEmpty();
+        model.ModelState["Input.SepaMandateConsented"]!.Errors.Should().NotBeEmpty();
+        model.ModelState["Input.BankIban"]!.Errors.Should().NotBeEmpty();
         (await context.Members.CountAsync()).Should().Be(0);
     }
 
@@ -85,6 +86,15 @@ public sealed class RegistrationConsentTests : IDisposable
     [Fact]
     public async Task EmptyFamilyTemplateRows_DoNotTriggerAutomaticRequiredErrors()
     {
+        var nullabilityContext = new System.Reflection.NullabilityInfoContext();
+        foreach (var prop in typeof(FamilyMemberInput).GetProperties()
+                     .Where(p => p.PropertyType == typeof(string)))
+        {
+            nullabilityContext.Create(prop).WriteState.Should().Be(
+                System.Reflection.NullabilityState.Nullable,
+                $"{prop.Name} must stay nullable so ASP.NET Core never generates implicit required errors on empty rows");
+        }
+
         var (model, context) = await CreateModelAsync(privacyConsented: true, sepaConsented: true);
         var familyFee = new MembershipFee
         {
@@ -93,11 +103,8 @@ public sealed class RegistrationConsentTests : IDisposable
         };
         context.MembershipFees.Add(familyFee);
         await context.SaveChangesAsync();
-        model.Member.MembershipFeeId = familyFee.Id;
-        model.FamilyMembers = [new RegisterModel.FamilyMemberItem()];
-        model.ModelState.AddModelError("FamilyMembers[INDEX].FirstName", "The FirstName field is required.");
-        model.ModelState.AddModelError("FamilyMembers[INDEX].LastName", "The LastName field is required.");
-        model.ModelState.AddModelError("FamilyMembers[INDEX].Email", "The Email field is required.");
+        model.Input.MembershipFeeId = familyFee.Id;
+        model.FamilyMembers = [new FamilyMemberInput()];
 
         await model.OnPostAsync();
 
@@ -144,19 +151,18 @@ public sealed class RegistrationConsentTests : IDisposable
             PageContext = new PageContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, new Mock<ITempDataProvider>().Object),
             Url = new Mock<IUrlHelper>().Object,
-            PrivacyConsented = privacyConsented,
-            SepaMandateConsented = sepaConsented,
-            BirthDay = 15,
-            BirthMonth = 4,
-            BirthYear = 1992,
-            Member = new Member
+            Input = new RegisterModel.RegisterInputModel
             {
                 FirstName = "Anna",
                 LastName = "Beispiel",
                 Email = "anna.consent@example.com",
-                BirthDate = new DateTime(1992, 4, 15),
+                BirthDay = 15,
+                BirthMonth = 4,
+                BirthYear = 1992,
                 BankIban = iban,
-                MembershipFeeId = fee.Id
+                MembershipFeeId = fee.Id,
+                PrivacyConsented = privacyConsented,
+                SepaMandateConsented = sepaConsented
             }
         };
         return (model, context);

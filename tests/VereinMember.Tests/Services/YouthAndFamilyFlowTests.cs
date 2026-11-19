@@ -97,22 +97,22 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             PageContext = new PageContext { HttpContext = new DefaultHttpContext() },
             TempData = new TempDataDictionary(new DefaultHttpContext(), new Mock<ITempDataProvider>().Object),
             Url = urlMock.Object,
-            BirthDay = 12,
-            BirthMonth = 8,
-            BirthYear = 2014,
-            PrivacyConsented = true,
-            SepaMandateConsented = true,
-            GuardianFirstName = "Claudia",
-            GuardianLastName = "Eltern",
-            GuardianEmail = "claudia.eltern@example.com",
-            GuardianPhone = "+49171000111",
-            Member = new Member
+            Input = new RegisterModel.RegisterInputModel
             {
                 FirstName = "Tim",
                 LastName = "Eltern",
                 Email = "tim.eltern@example.com",
+                BirthDay = 12,
+                BirthMonth = 8,
+                BirthYear = 2014,
                 BankIban = "DE89370400440532013000",
-                MembershipFeeId = youthFee.Id
+                MembershipFeeId = youthFee.Id,
+                PrivacyConsented = true,
+                SepaMandateConsented = true,
+                GuardianFirstName = "Claudia",
+                GuardianLastName = "Eltern",
+                GuardianEmail = "claudia.eltern@example.com",
+                GuardianPhone = "+49171000111"
             }
         };
 
@@ -161,17 +161,17 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             context)
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext() },
-            BirthDay = 12,
-            BirthMonth = 8,
-            BirthYear = 2014,
-            PrivacyConsented = true,
-            SepaMandateConsented = true,
-            Member = new Member
+            Input = new RegisterModel.RegisterInputModel
             {
                 FirstName = "Tim",
                 LastName = "OhneEltern",
                 Email = "tim.ohne@example.com",
-                MembershipFeeId = youthFee.Id
+                BirthDay = 12,
+                BirthMonth = 8,
+                BirthYear = 2014,
+                MembershipFeeId = youthFee.Id,
+                PrivacyConsented = true,
+                SepaMandateConsented = true
             }
         };
 
@@ -239,21 +239,21 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             context)
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext() },
-            BirthDay = 10,
-            BirthMonth = 3,
-            BirthYear = 1985,
-            PrivacyConsented = true,
-            SepaMandateConsented = true,
-            Member = new Member
+            Input = new RegisterModel.RegisterInputModel
             {
                 FirstName = "Max",
                 LastName = "Muster",
                 Email = "max.family@example.com",
-                MembershipFeeId = familyFee.Id
+                BirthDay = 10,
+                BirthMonth = 3,
+                BirthYear = 1985,
+                MembershipFeeId = familyFee.Id,
+                PrivacyConsented = true,
+                SepaMandateConsented = true
             },
             FamilyMembers =
             [
-                new RegisterModel.FamilyMemberItem
+                new VereinMember.Areas.Membership.ViewModels.FamilyMemberInput
                 {
                     FirstName = "Kind",
                     LastName = "Muster",
@@ -333,10 +333,10 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
 
         var getResult = await editModel.OnGetAsync(youth.Id);
         getResult.Should().BeOfType<PageResult>();
-        editModel.Member.GuardianFirstName.Should().Be("Laura");
-        editModel.Member.GuardianEmail.Should().Be("laura.jung@example.com");
+        editModel.Input.GuardianFirstName.Should().Be("Laura");
+        editModel.Input.GuardianEmail.Should().Be("laura.jung@example.com");
 
-        editModel.Member.GuardianPhone = " 01722222222 ";
+        editModel.Input.GuardianPhone = " 01722222222 ";
         var postResult = await editModel.OnPostAsync();
         postResult.Should().BeOfType<RedirectToPageResult>();
 

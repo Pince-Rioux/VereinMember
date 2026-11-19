@@ -281,18 +281,18 @@ public sealed class ApiBoundaryAndUpdateHardeningTests : IDisposable
             _provider.GetRequiredService<ILogger<RegisterModel>>())
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext() },
-            BirthDay = 10,
-            BirthMonth = 5,
-            BirthYear = 1995,
-            PrivacyConsented = true,
-            SepaMandateConsented = true,
-            Member = new Member
+            Input = new RegisterModel.RegisterInputModel
             {
                 FirstName = "Tom",
                 LastName = "Tester",
                 Email = "tom@example.com",
+                BirthDay = 10,
+                BirthMonth = 5,
+                BirthYear = 1995,
                 BankIban = "DE89370400440532013000",
-                MembershipFeeId = fee.Id
+                MembershipFeeId = fee.Id,
+                PrivacyConsented = true,
+                SepaMandateConsented = true
             }
         };
 
@@ -382,14 +382,13 @@ public sealed class ApiBoundaryAndUpdateHardeningTests : IDisposable
         {
             var loginModel = new LoginModel(signInManager, userManager, memberService, logger)
             {
-                PageContext = new PageContext { HttpContext = httpContext }
-            };
-            loginModel.PageContext.HttpContext.Request.Form = new FormCollection(
-                new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+                PageContext = new PageContext { HttpContext = httpContext },
+                Input = new LoginModel.LoginInputModel
                 {
-                    ["email"] = member.Email,
-                    ["password"] = "WrongPass1"
-                });
+                    Email = member.Email,
+                    Password = "WrongPass1"
+                }
+            };
 
             await loginModel.OnPostAsync();
         }
@@ -409,14 +408,13 @@ public sealed class ApiBoundaryAndUpdateHardeningTests : IDisposable
 
         var blockedLogin = new LoginModel(signInManager, userManager, memberService, logger)
         {
-            PageContext = new PageContext { HttpContext = httpContext }
-        };
-        blockedLogin.PageContext.HttpContext.Request.Form = new FormCollection(
-            new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+            PageContext = new PageContext { HttpContext = httpContext },
+            Input = new LoginModel.LoginInputModel
             {
-                ["email"] = member.Email,
-                ["password"] = "ValidPass1"
-            });
+                Email = member.Email,
+                Password = "ValidPass1"
+            }
+        };
 
         var result = await blockedLogin.OnPostAsync();
         result.Should().BeOfType<PageResult>();

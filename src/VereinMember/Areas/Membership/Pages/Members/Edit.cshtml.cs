@@ -1,13 +1,13 @@
-using VereinMember.Data;
-using VereinMember.Extensions;
-using VereinMember.Models;
-using VereinMember.Services;
+using System.ComponentModel.DataAnnotations;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
+using VereinMember.Data;
+using VereinMember.Extensions;
+using VereinMember.Models;
+using VereinMember.Services;
 
 namespace VereinMember.Areas.Membership.Pages.Members;
 
@@ -20,16 +20,7 @@ public class EditModel(
     MembershipDbContext context) : PageModel
 {
     [BindProperty]
-    public Member Member { get; set; } = new();
-
-    [BindProperty]
-    public int? BirthDay { get; set; }
-
-    [BindProperty]
-    public int? BirthMonth { get; set; }
-
-    [BindProperty]
-    public int? BirthYear { get; set; }
+    public EditMemberInputModel Input { get; set; } = new();
 
     public List<SelectListItem> FeeOptions { get; set; } = [];
     public List<SelectListItem> DepartmentOptions { get; set; } = [];
@@ -44,54 +35,44 @@ public class EditModel(
             return NotFound();
         }
 
-        Member = member;
-        if (member.BirthDate.Year > 1)
-        {
-            BirthDay = member.BirthDate.Day;
-            BirthMonth = member.BirthDate.Month;
-            BirthYear = member.BirthDate.Year;
-        }
-        await LoadOptionsAsync();
+        Input = EditMemberInputModel.FromMember(member);
+        await LoadOptionsAsync(id);
         return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        // Compose BirthDate from cross-browser selects
-        if (BirthYear.HasValue && BirthMonth.HasValue && BirthDay.HasValue)
+        var member = Input.ToMember();
+
+        if (!BirthDateHelper.TryComposeBirthDate(member, Input.BirthDay, Input.BirthMonth, Input.BirthYear, ModelState.AddModelError, "Input.BirthDate"))
         {
-            try { Member.BirthDate = new DateTime(BirthYear.Value, BirthMonth.Value, BirthDay.Value); }
-            catch (ArgumentOutOfRangeException) { ModelState.AddModelError("Member.BirthDate", "Ungültiges Geburtsdatum."); }
+            await LoadOptionsAsync(Input.Id);
+            return Page();
         }
 
-        Member.GuardianFirstName = string.IsNullOrWhiteSpace(Member.GuardianFirstName) ? null : Member.GuardianFirstName.Trim();
-        Member.GuardianLastName = string.IsNullOrWhiteSpace(Member.GuardianLastName) ? null : Member.GuardianLastName.Trim();
-        Member.GuardianEmail = string.IsNullOrWhiteSpace(Member.GuardianEmail) ? null : Member.GuardianEmail.Trim();
-        Member.GuardianPhone = string.IsNullOrWhiteSpace(Member.GuardianPhone) ? null : Member.GuardianPhone.Trim();
-
-        var validationResult = await validator.ValidateAsync(Member);
+        var validationResult = await validator.ValidateAsync(member);
         if (!validationResult.IsValid)
         {
             foreach (var error in validationResult.Errors)
             {
-                ModelState.AddModelError($"Member.{error.PropertyName}", error.ErrorMessage);
+                ModelState.AddModelError($"Input.{error.PropertyName}", error.ErrorMessage);
             }
 
-            await LoadOptionsAsync();
+            await LoadOptionsAsync(Input.Id);
             return Page();
         }
 
         try
         {
             var performedBy = User.Identity?.Name ?? "system";
-            var updated = await memberService.UpdateAsync(Member, performedBy);
+            var updated = await memberService.UpdateAsync(member, performedBy);
             TempData["Success"] = $"Mitglied „{updated.FirstName} {updated.LastName}“ erfolgreich aktualisiert.";
             return RedirectToPage("Index");
         }
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            await LoadOptionsAsync();
+            await LoadOptionsAsync(Input.Id);
             return Page();
         }
         catch (KeyNotFoundException)
@@ -100,50 +81,127 @@ public class EditModel(
         }
     }
 
-    private async Task LoadOptionsAsync()
+    private async Task LoadOptionsAsync(int excludeMemberId)
     {
-        FeeOptions = await context.MembershipFees
-            .Select(f => new SelectListItem
-            {
-                Value = f.Id.ToString(),
-                Text = f.Name + " (" + f.Amount.ToString("C") + ")",
-                Group = new SelectListGroup { Name = f.Category.ToString() }
-            })
-            .ToListAsync();
+        FeeOptions = await MembershipFormHelper.LoadFeeOptionsAsync(context);
+        DepartmentOptions = await MembershipFormHelper.LoadDepartmentOptionsAsync(context);
+        GuardianOptions = await MembershipFormHelper.LoadGuardianOptionsAsync(context, excludeMemberId);
+        FamilyGroupOptions = await MembershipFormHelper.LoadFamilyGroupOptionsAsync(context);
+    }
 
-        DepartmentOptions = await context.Departments
-            .Select(d => new SelectListItem { Value = d.Id.ToString(), Text = d.Name })
-            .ToListAsync();
+    public sealed class EditMemberInputModel
+    {
+        public int Id { get; set; }
+        public byte[] ConcurrencyToken { get; set; } = [];
 
-        GuardianOptions = await context.Members
-            .Where(m => m.MembershipFee!.Category == FeeCategory.Adult && m.Status == MemberStatus.Active)
-            .Select(m => new SelectListItem { Value = m.Id.ToString(), Text = m.LastName + ", " + m.FirstName })
-            .ToListAsync();
+        [Display(Name = "Vorname")]
+        public string? FirstName { get; set; }
 
-        var familyGroups = await context.FamilyGroups
-            .AsNoTracking()
-            .Include(g => g.Members)
-            .OrderBy(g => g.Id)
-            .ToListAsync();
+        [Display(Name = "Nachname")]
+        public string? LastName { get; set; }
 
-        FamilyGroupOptions = familyGroups
-            .Select(g =>
-            {
-                var activeNames = g.Members
-                    .Where(m => m.Status != MemberStatus.Former)
-                    .OrderBy(m => m.LastName)
-                    .ThenBy(m => m.FirstName)
-                    .Select(m => $"{m.FirstName} {m.LastName}".Trim())
-                    .Where(n => !string.IsNullOrWhiteSpace(n))
-                    .Take(3)
-                    .ToList();
-                var hint = activeNames.Count > 0 ? string.Join(", ", activeNames) : null;
-                return new SelectListItem
-                {
-                    Value = g.Id.ToString(),
-                    Text = MembershipDisplay.FormatFamilyGroupLabel(g, hint)
-                };
-            })
-            .ToList();
+        [Display(Name = "E-Mail")]
+        public string? Email { get; set; }
+
+        [Display(Name = "Telefon")]
+        public string? Phone { get; set; }
+
+        public int? BirthDay { get; set; }
+        public int? BirthMonth { get; set; }
+        public int? BirthYear { get; set; }
+
+        [Display(Name = "Geburtsdatum")]
+        public DateTime? BirthDate { get; set; }
+
+        [Display(Name = "Beitragsgruppe")]
+        public int MembershipFeeId { get; set; }
+
+        [Display(Name = "Abteilung")]
+        public int? DepartmentId { get; set; }
+
+        [Display(Name = "Erziehungsberechtigter")]
+        public int? GuardianMemberId { get; set; }
+
+        public string? GuardianFirstName { get; set; }
+        public string? GuardianLastName { get; set; }
+        public string? GuardianEmail { get; set; }
+        public string? GuardianPhone { get; set; }
+
+        [Display(Name = "Familie")]
+        public int? FamilyGroupId { get; set; }
+
+        [Display(Name = "Straße")]
+        public string? Street { get; set; }
+
+        [Display(Name = "PLZ")]
+        public string? ZipCode { get; set; }
+
+        [Display(Name = "Ort")]
+        public string? City { get; set; }
+
+        [Display(Name = "Land")]
+        public string? Country { get; set; }
+
+        [Display(Name = "Notizen")]
+        public string? Notes { get; set; }
+
+        [Display(Name = "IBAN")]
+        public string? BankIban { get; set; }
+
+        [Display(Name = "BIC")]
+        public string? BankBic { get; set; }
+
+        public static EditMemberInputModel FromMember(Member member) => new()
+        {
+            Id = member.Id,
+            ConcurrencyToken = member.ConcurrencyToken,
+            FirstName = member.FirstName,
+            LastName = member.LastName,
+            Email = member.Email,
+            Phone = member.Phone,
+            BirthDay = member.BirthDate.Year > 1 ? member.BirthDate.Day : null,
+            BirthMonth = member.BirthDate.Year > 1 ? member.BirthDate.Month : null,
+            BirthYear = member.BirthDate.Year > 1 ? member.BirthDate.Year : null,
+            MembershipFeeId = member.MembershipFeeId,
+            DepartmentId = member.DepartmentId,
+            GuardianMemberId = member.GuardianMemberId,
+            GuardianFirstName = member.GuardianFirstName,
+            GuardianLastName = member.GuardianLastName,
+            GuardianEmail = member.GuardianEmail,
+            GuardianPhone = member.GuardianPhone,
+            FamilyGroupId = member.FamilyGroupId,
+            Street = member.Street,
+            ZipCode = member.ZipCode,
+            City = member.City,
+            Country = member.Country,
+            Notes = member.Notes,
+            BankIban = member.BankIban,
+            BankBic = member.BankBic
+        };
+
+        public Member ToMember() => new()
+        {
+            Id = Id,
+            ConcurrencyToken = ConcurrencyToken,
+            FirstName = FirstName?.Trim() ?? string.Empty,
+            LastName = LastName?.Trim() ?? string.Empty,
+            Email = Email?.Trim() ?? string.Empty,
+            Phone = MembershipFormHelper.TrimToNull(Phone),
+            MembershipFeeId = MembershipFeeId,
+            DepartmentId = DepartmentId,
+            GuardianMemberId = GuardianMemberId,
+            GuardianFirstName = MembershipFormHelper.TrimToNull(GuardianFirstName),
+            GuardianLastName = MembershipFormHelper.TrimToNull(GuardianLastName),
+            GuardianEmail = MembershipFormHelper.TrimToNull(GuardianEmail),
+            GuardianPhone = MembershipFormHelper.TrimToNull(GuardianPhone),
+            FamilyGroupId = FamilyGroupId,
+            Street = MembershipFormHelper.TrimToNull(Street),
+            ZipCode = MembershipFormHelper.TrimToNull(ZipCode),
+            City = MembershipFormHelper.TrimToNull(City),
+            Country = MembershipFormHelper.TrimToNull(Country),
+            Notes = MembershipFormHelper.TrimToNull(Notes),
+            BankIban = MembershipFormHelper.TrimToNull(BankIban),
+            BankBic = MembershipFormHelper.TrimToNull(BankBic)
+        };
     }
 }

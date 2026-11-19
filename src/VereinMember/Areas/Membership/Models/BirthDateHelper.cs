@@ -4,7 +4,7 @@ using System;
 
 /// <summary>
 /// Shared helper for composing a <see cref="Member.BirthDate"/> from three separate
-/// day/month/year select fields. Called identically by Register and Create models.
+/// day/month/year select fields. Called by Register, Create, and Edit page models.
 /// Accepts an error-reporting callback instead of a concrete ModelState type
 /// so the helper has no dependency on Razor Pages infrastructure.
 /// </summary>
@@ -20,7 +20,8 @@ public static class BirthDateHelper
         int? birthDay,
         int? birthMonth,
         int? birthYear,
-        Action<string, string>? addModelError)
+        Action<string, string>? addModelError,
+        string errorKey = "Input.BirthDate")
     {
         if (birthYear.HasValue && birthMonth.HasValue && birthDay.HasValue)
         {
@@ -31,14 +32,12 @@ public static class BirthDateHelper
             }
             catch (ArgumentOutOfRangeException)
             {
-                if (addModelError != null)
-                    addModelError("Member.BirthDate", "Bitte geben Sie ein gültiges Datum ein.");
+                addModelError?.Invoke(errorKey, "Bitte geben Sie ein gültiges Datum ein.");
                 return false;
             }
         }
 
-        if (addModelError != null)
-            addModelError("Member.BirthDate", "Bitte wählen Sie Ihr Geburtsdatum aus (Tag, Monat, Jahr).");
+        addModelError?.Invoke(errorKey, "Bitte wählen Sie Ihr Geburtsdatum aus (Tag, Monat, Jahr).");
         return false;
     }
 }

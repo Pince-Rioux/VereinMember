@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const feeSelect = document.getElementById('Member_MembershipFeeId');
+    const feeSelect = document.getElementById('Input_MembershipFeeId')
+        || document.getElementById('Member_MembershipFeeId');
     const guardianSection = document.getElementById('guardianSection');
     const familySection = document.getElementById('familySection');
     const familyContainer = document.getElementById('familyMembersContainer');
@@ -25,11 +26,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!guardianSection || guardianSection.dataset.keepVisibleIfPopulated !== 'true') {
             return false;
         }
-        const memberId = document.getElementById('Member_GuardianMemberId')?.value;
-        const gFirst = document.getElementById('Member_GuardianFirstName')?.value;
-        const gLast = document.getElementById('Member_GuardianLastName')?.value;
-        const gEmail = document.getElementById('Member_GuardianEmail')?.value;
-        const gPhone = document.getElementById('Member_GuardianPhone')?.value;
+        const memberId = (document.getElementById('Input_GuardianMemberId') || document.getElementById('Member_GuardianMemberId'))?.value;
+        const gFirst = (document.getElementById('Input_GuardianFirstName') || document.getElementById('Member_GuardianFirstName'))?.value;
+        const gLast = (document.getElementById('Input_GuardianLastName') || document.getElementById('Member_GuardianLastName'))?.value;
+        const gEmail = (document.getElementById('Input_GuardianEmail') || document.getElementById('Member_GuardianEmail'))?.value;
+        const gPhone = (document.getElementById('Input_GuardianPhone') || document.getElementById('Member_GuardianPhone'))?.value;
         return Boolean(memberId || gFirst || gLast || gEmail || gPhone);
     }
 
