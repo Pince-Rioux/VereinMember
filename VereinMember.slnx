@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/Solution Items/">
-    <File Path=".gitignore" />
-    <File Path="README.md" />
-  </Folder>
-  <Project Path="src/VereinMember/VereinMember.csproj" />
-  <Project Path="tests/VereinMember.Tests/VereinMember.Tests.csproj" />
-</Solution>

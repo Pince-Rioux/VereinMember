@@ -347,6 +347,100 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         reloaded.GuardianPhone.Should().Be("01722222222");
     }
 
+    [Fact]
+    public async Task EditModel_FamilyGroupOptions_DisambiguatesDuplicateNamesWithIdAndActiveMembers()
+    {
+        using var scope = _provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDbContext>();
+        var memberService = scope.ServiceProvider.GetRequiredService<IMemberService>();
+        var validator = scope.ServiceProvider.GetRequiredService<IValidator<Member>>();
+        var (_, familyFee) = await SeedFeesAsync(context);
+
+        var group1 = await memberService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
+        var group2 = await memberService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
+        var unnamedGroup = await memberService.CreateFamilyGroupAsync(null, "admin@verein.de");
+
+        context.Members.AddRange(
+            new Member
+            {
+                FirstName = "Anna",
+                LastName = "Müller",
+                Email = "anna.mueller@example.com",
+                BirthDate = new DateTime(1984, 3, 12),
+                MembershipFeeId = familyFee.Id,
+                FamilyGroupId = group1.Id,
+                Status = MemberStatus.Active,
+                JoinedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = "admin@verein.de"
+            },
+            new Member
+            {
+                FirstName = "Tim",
+                LastName = "Müller",
+                Email = "tim.mueller@example.com",
+                BirthDate = new DateTime(1982, 7, 4),
+                MembershipFeeId = familyFee.Id,
+                FamilyGroupId = group2.Id,
+                Status = MemberStatus.Active,
+                JoinedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = "admin@verein.de"
+            },
+            new Member
+            {
+                FirstName = "Alt",
+                LastName = "Müller",
+                Email = "alt.mueller@example.com",
+                BirthDate = new DateTime(1950, 1, 1),
+                MembershipFeeId = familyFee.Id,
+                FamilyGroupId = group2.Id,
+                Status = MemberStatus.Former,
+                JoinedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = "admin@verein.de"
+            });
+        await context.SaveChangesAsync();
+
+        var firstMember = await context.Members.AsNoTracking().FirstAsync(m => m.FamilyGroupId == group1.Id);
+        var editModel = new VereinMember.Areas.Membership.Pages.Members.EditModel(
+            memberService,
+            validator,
+            context)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var result = await editModel.OnGetAsync(firstMember.Id);
+        result.Should().BeOfType<PageResult>();
+
+        editModel.FamilyGroupOptions.Select(o => o.Text).Should().Equal(
+            $"Familie Müller (#{group1.Id}) – Anna Müller",
+            $"Familie Müller (#{group2.Id}) – Tim Müller",
+            $"Familie #{unnamedGroup.Id}");
+    }
+
+    [Fact]
+    public void MembershipDisplay_FormatsGermanStatusFeeCategoryAndFamilyLabels()
+    {
+        MembershipDisplay.GetGermanStatus(MemberStatus.Active).Should().Be("Aktiv");
+        MembershipDisplay.GetGermanStatus(MemberStatus.Passive).Should().Be("Passiv");
+        MembershipDisplay.GetGermanStatus(MemberStatus.Honorary).Should().Be("Ehrenmitglied");
+        MembershipDisplay.GetGermanStatus(MemberStatus.Former).Should().Be("Ausgetreten");
+
+        MembershipDisplay.GetGermanFeeCategory(FeeCategory.Adult).Should().Be("Erwachsene");
+        MembershipDisplay.GetGermanFeeCategory(FeeCategory.Youth).Should().Be("Jugend");
+        MembershipDisplay.GetGermanFeeCategory(FeeCategory.Family).Should().Be("Familie");
+
+        MembershipDisplay.FormatFamilyGroupLabel(new FamilyGroup { Id = 7, Name = "Familie Becker" })
+            .Should().Be("Familie Becker (#7)");
+        MembershipDisplay.FormatFamilyGroupLabel(new FamilyGroup { Id = 8, Name = null }, "Eva Becker")
+            .Should().Be("Familie #8 – Eva Becker");
+    }
+
     private sealed class TestTempDataProvider : ITempDataProvider
     {
         private readonly Dictionary<string, object?> _data = new();

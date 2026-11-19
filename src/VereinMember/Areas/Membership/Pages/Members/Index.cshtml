@@ -8,6 +8,11 @@
 
 <h1>Mitglieder</h1>
 
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
 <form method="get" class="row g-3 mb-3">
     <div class="col-md-3">
         <input asp-for="SearchTerm" class="form-control" placeholder="Suchen..." />
@@ -54,8 +59,8 @@
             <tr>
                 <td>@member.LastName, @member.FirstName</td>
                 <td>@member.Email</td>
-                <td>@(member.MembershipFee != null ? $"{member.MembershipFee.Name} ({VereinMember.Areas.Membership.Pages.Members.IndexModel.GetGermanFeeCategory(member.MembershipFee.Category)})" : "-")</td>
-                <td>@VereinMember.Areas.Membership.Pages.Members.IndexModel.GetGermanStatus(member.Status)</td>
+                <td>@(member.MembershipFee != null ? $"{member.MembershipFee.Name} ({MembershipDisplay.GetGermanFeeCategory(member.MembershipFee.Category)})" : "-")</td>
+                <td>@MembershipDisplay.GetGermanStatus(member.Status)</td>
                 <td>@member.Department?.Name</td>
                 <td>@member.JoinedAt.ToShortDateString()</td>
                 <td>

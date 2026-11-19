@@ -96,7 +96,7 @@ public class CreateModel(
             $"{created.FirstName} {created.LastName}",
             inviteUrl);
 
-        TempData["Success"] = $"Member '{created.FirstName} {created.LastName}' created. Invitation email sent to {created.Email}.";
+        TempData["Success"] = $"Mitglied „{created.FirstName} {created.LastName}“ angelegt. Einladungs-E-Mail an {created.Email} gesendet.";
         return RedirectToPage("Index");
     }
 
@@ -139,19 +139,19 @@ public class CreateModel(
             {
                 if (!seenEmails.Add(subEmail))
                 {
-                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Duplicate email address within family.");
+                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Doppelte E-Mail-Adresse innerhalb der Familie.");
                     hasErrors = true;
                 }
                 else if (await context.Members.AsNoTracking().AnyAsync(m => m.Email == subEmail))
                 {
-                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Email address is already registered.");
+                    ModelState.AddModelError($"FamilyMembers[{i}].Email", "Diese E-Mail-Adresse ist bereits registriert.");
                     hasErrors = true;
                 }
             }
 
             if (fm.BirthDay.HasValue && fm.BirthMonth.HasValue && fm.BirthYear.HasValue && fm.BirthDate == DateTime.MinValue)
             {
-                ModelState.AddModelError($"FamilyMembers[{i}].BirthDate", "Invalid birth date.");
+                ModelState.AddModelError($"FamilyMembers[{i}].BirthDate", "Ungültiges Geburtsdatum.");
                 hasErrors = true;
             }
 
@@ -194,7 +194,7 @@ public class CreateModel(
         // Minimum 2 total members (main + at least 1 sub)
         if (subMembers.Count < 1)
         {
-            ModelState.AddModelError(string.Empty, "A family requires at least 2 members. Please add at least one additional family member.");
+            ModelState.AddModelError(string.Empty, "Eine Familie erfordert mindestens 2 Mitglieder. Bitte fügen Sie mindestens ein weiteres Familienmitglied hinzu.");
             await LoadOptionsAsync();
             return Page();
         }
@@ -214,7 +214,7 @@ public class CreateModel(
                     inviteUrl);
             }
 
-            TempData["Success"] = $"{createdMembers.Count} family members created. Invitation emails sent.";
+            TempData["Success"] = $"{createdMembers.Count} Familienmitglieder angelegt. Einladungs-E-Mails gesendet.";
             return RedirectToPage("Index");
         }
         catch (Exception ex)

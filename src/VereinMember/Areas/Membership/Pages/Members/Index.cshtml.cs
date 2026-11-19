@@ -92,20 +92,7 @@ public class IndexModel(IMemberService memberService, MembershipDbContext contex
             .ToList();
     }
 
-    public static string GetGermanStatus(MemberStatus status) => status switch
-    {
-        MemberStatus.Active => "Aktiv",
-        MemberStatus.Passive => "Passiv",
-        MemberStatus.Honorary => "Ehrenmitglied",
-        MemberStatus.Former => "Ausgetreten",
-        _ => status.ToString()
-    };
+    public static string GetGermanStatus(MemberStatus status) => MembershipDisplay.GetGermanStatus(status);
 
-    public static string GetGermanFeeCategory(Models.FeeCategory category) => category switch
-    {
-        Models.FeeCategory.Adult => "Erwachsene",
-        Models.FeeCategory.Youth => "Jugend",
-        Models.FeeCategory.Family => "Familie",
-        _ => category.ToString()
-    };
+    public static string GetGermanFeeCategory(Models.FeeCategory category) => MembershipDisplay.GetGermanFeeCategory(category);
 }

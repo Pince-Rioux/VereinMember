@@ -30,13 +30,13 @@ jobs:
             --password "${{ secrets.GITHUB_TOKEN }}" || true
 
       - name: Restore
-        run: dotnet restore tests/VereinMember.Tests/VereinMember.Tests.csproj
+        run: dotnet restore VereinMember.sln
 
       - name: Build
-        run: dotnet build tests/VereinMember.Tests/VereinMember.Tests.csproj --no-restore --configuration Release
+        run: dotnet build VereinMember.sln --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test tests/VereinMember.Tests/VereinMember.Tests.csproj --no-build --configuration Release --verbosity normal
+        run: dotnet test VereinMember.sln --no-build --configuration Release --verbosity normal
 
       - name: Pack
         run: dotnet pack src/VereinMember/VereinMember.csproj --no-build --configuration Release -o .nupkg-test

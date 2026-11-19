@@ -41,7 +41,7 @@ public class DeleteModel(IMemberService memberService) : PageModel
             return NotFound();
         }
 
-        TempData["Success"] = $"Member '{Member.FirstName} {Member.LastName}' has been soft-deleted.";
+        TempData["Success"] = $"Mitglied „{Member.FirstName} {Member.LastName}“ wurde deaktiviert (Status: Ausgetreten).";
         return RedirectToPage("Index");
     }
 }
