@@ -12,6 +12,10 @@
 {
     <div class="alert alert-success">@TempData["Success"]</div>
 }
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
 
 <dl class="row">
     <dt class="col-sm-3">Name</dt>
@@ -80,7 +84,22 @@
     <dd class="col-sm-9">@Model.Member?.UpdatedAt.ToShortDateString()</dd>
 </dl>
 
-<div>
+<div class="d-flex flex-wrap gap-2">
     <a asp-page="Edit" asp-route-id="@Model.Member?.Id" class="btn btn-warning">Bearbeiten</a>
     <a asp-page="Index" class="btn btn-secondary">Zurück zur Liste</a>
+
+    @if ((User.IsInRole("Admin") || User.IsInRole("Editor")) && Model.Member != null)
+    {
+        <form method="post" asp-page-handler="Export" asp-route-id="@Model.Member.Id" class="d-inline">
+            <button type="submit" class="btn btn-outline-primary">Datenexport (JSON)</button>
+        </form>
+    }
+
+    @if (User.IsInRole("Admin") && Model.Member != null && Model.Member.FirstName != "[erased]")
+    {
+        <form method="post" asp-page-handler="Erasure" asp-route-id="@Model.Member.Id" class="d-inline"
+              onsubmit="return confirm('Personenbezogene Daten dieses Mitglieds gemäß DSGVO unwiderruflich löschen?');">
+            <button type="submit" class="btn btn-outline-danger">DSGVO-Löschung</button>
+        </form>
+    }
 </div>
