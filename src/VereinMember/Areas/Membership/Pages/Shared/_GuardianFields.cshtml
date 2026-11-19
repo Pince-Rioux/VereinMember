@@ -1,0 +1,54 @@
+@model GuardianFieldsViewModel
+@{
+    var idPrefix = Model.FieldPrefix.Replace('.', '_');
+    var selectedGuardian = Model.GuardianMemberId?.ToString();
+}
+<div class="col-12" id="guardianSection" style="@(Model.InitiallyHidden ? "display:none" : null)" data-keep-visible-if-populated="@(Model.KeepVisibleIfPopulated ? "true" : "false")">
+    <h5 class="@Model.HeadingClass">@Model.HeadingText</h5>
+    @if (!string.IsNullOrWhiteSpace(Model.IntroText))
+    {
+        <p class="text-muted">@Model.IntroText</p>
+    }
+    <div class="row g-3">
+        @if (Model.ShowMemberSelector)
+        {
+            <div class="col-md-6">
+                <label for="@(idPrefix)GuardianMemberId" class="form-label">Erziehungsberechtigter (Mitglied)</label>
+                <select id="@(idPrefix)GuardianMemberId" name="@(Model.FieldPrefix)GuardianMemberId" class="form-select">
+                    <option value="">Kein Mitglied ausgewählt...</option>
+                    @if (Model.GuardianOptions != null)
+                    {
+                        foreach (var option in Model.GuardianOptions)
+                        {
+                            <option value="@option.Value" selected="@(option.Selected || (selectedGuardian != null && option.Value == selectedGuardian) ? "selected" : null)">@option.Text</option>
+                        }
+                    }
+                </select>
+                @Html.ValidationMessage($"{Model.FieldPrefix}GuardianMemberId", null, new { @class = "text-danger" })
+            </div>
+            <div class="col-12">
+                <small class="text-muted">Oder Kontaktdaten eines Erziehungsberechtigten ohne eigene Mitgliedschaft:</small>
+            </div>
+        }
+        <div class="col-md-3">
+            <label for="@(idPrefix)GuardianFirstName" class="form-label">Vorname</label>
+            <input id="@(idPrefix)GuardianFirstName" name="@(Model.FieldPrefix)GuardianFirstName" value="@Model.GuardianFirstName" class="form-control" />
+            @Html.ValidationMessage($"{Model.FieldPrefix}GuardianFirstName", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-3">
+            <label for="@(idPrefix)GuardianLastName" class="form-label">Nachname</label>
+            <input id="@(idPrefix)GuardianLastName" name="@(Model.FieldPrefix)GuardianLastName" value="@Model.GuardianLastName" class="form-control" />
+            @Html.ValidationMessage($"{Model.FieldPrefix}GuardianLastName", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-3">
+            <label for="@(idPrefix)GuardianEmail" class="form-label">E-Mail</label>
+            <input id="@(idPrefix)GuardianEmail" name="@(Model.FieldPrefix)GuardianEmail" value="@Model.GuardianEmail" class="form-control" type="email" />
+            @Html.ValidationMessage($"{Model.FieldPrefix}GuardianEmail", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-3">
+            <label for="@(idPrefix)GuardianPhone" class="form-label">Telefon</label>
+            <input id="@(idPrefix)GuardianPhone" name="@(Model.FieldPrefix)GuardianPhone" value="@Model.GuardianPhone" class="form-control" type="tel" />
+            @Html.ValidationMessage($"{Model.FieldPrefix}GuardianPhone", null, new { @class = "text-danger" })
+        </div>
+    </div>
+</div>

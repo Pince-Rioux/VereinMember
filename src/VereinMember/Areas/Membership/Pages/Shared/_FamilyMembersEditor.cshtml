@@ -1,0 +1,45 @@
+@model FamilyMembersEditorViewModel
+<div class="col-12" id="familySection" style="display:none" data-initial-rows="@Model.InitialRowsJson">
+    @if (Model.ShowHrBefore)
+    {
+        <hr />
+    }
+    <h5 class="@(Model.ShowHrBefore ? null : "border-bottom pb-2")">Familienmitglieder</h5>
+    <p class="text-muted">@Model.IntroText</p>
+
+    <div id="familyMembersContainer">
+        <div id="familyMemberTemplate" class="family-member-row row g-2 mb-2 p-2 border rounded" style="display:none">
+            @* INDEX is replaced when JavaScript adds a real family row. *@
+            <input type="hidden" name="FamilyMembers.Index" value="INDEX" />
+            <div class="@(Model.ShowJoinedAt ? "col-md-2" : "col-md-3")">
+                <input name="FamilyMembers[INDEX].FirstName" class="form-control form-control-sm" placeholder="Vorname" />
+            </div>
+            <div class="@(Model.ShowJoinedAt ? "col-md-2" : "col-md-3")">
+                <input name="FamilyMembers[INDEX].LastName" class="form-control form-control-sm" placeholder="Nachname" />
+            </div>
+            <div class="col-md-2">
+                <input name="FamilyMembers[INDEX].Email" class="form-control form-control-sm" type="email" placeholder="E-Mail" />
+            </div>
+            <div class="col-md-3">
+                <partial name="_DateSelects" model='new DateSelectsViewModel("FamilyMembers[INDEX].Birth", null, null, null, "form-select form-select-sm")' />
+            </div>
+            @if (Model.ShowJoinedAt)
+            {
+                <div class="col-md-2">
+                    <input name="FamilyMembers[INDEX].JoinedAt" class="form-control form-control-sm" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+            }
+            <div class="col-md-1">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-family-row" title="Entfernen">&times;</button>
+            </div>
+            <div class="col-12">
+                <span class="text-danger small family-row-errors" style="display:none"></span>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-sm btn-outline-primary" id="addFamilyMemberBtn">
+        + Familienmitglied hinzufügen
+    </button>
+    <hr />
+</div>

@@ -52,35 +52,7 @@
 
     <div class="col-md-6">
         <label class="form-label">Geburtsdatum</label>
-        <div class="row g-1">
-            <div class="col-4">
-                <select asp-for="BirthDay" class="form-select">
-                    <option value="">Tag</option>
-                    @for (int d = 1; d <= 31; d++)
-                    {
-                        <option value="@d">@d</option>
-                    }
-                </select>
-            </div>
-            <div class="col-4">
-                <select asp-for="BirthMonth" class="form-select">
-                    <option value="">Monat</option>
-                    @for (int m = 1; m <= 12; m++)
-                    {
-                        <option value="@m">@m</option>
-                    }
-                </select>
-            </div>
-            <div class="col-4">
-                <select asp-for="BirthYear" class="form-select">
-                    <option value="">Jahr</option>
-                    @for (int y = DateTime.Today.Year; y >= 1900; y--)
-                    {
-                        <option value="@y">@y</option>
-                    }
-                </select>
-            </div>
-        </div>
+        <partial name="_DateSelects" model='new DateSelectsViewModel("Birth", Model.BirthDay, Model.BirthMonth, Model.BirthYear, "form-select", "Birth")' />
         <span asp-validation-for="Member.BirthDate" class="text-danger"></span>
     </div>
     <div class="col-md-4">
@@ -92,108 +64,57 @@
     </div>
 
     @* Guardian section (shown when Youth is selected) *@
-    <div class="col-12" id="guardianSection" style="display:none">
-        <h5 class="border-bottom pb-2">Erziehungsberechtigter</h5>
-        <p class="text-muted">Da Sie unter 18 Jahren sind, benötigen wir die Daten eines Erziehungsberechtigten.</p>
-        <div class="row g-3">
-            <div class="col-md-3">
-                <label asp-for="GuardianFirstName" class="form-label">Vorname</label>
-                <input asp-for="GuardianFirstName" class="form-control" />
-                <span asp-validation-for="GuardianFirstName" class="text-danger"></span>
-            </div>
-            <div class="col-md-3">
-                <label asp-for="GuardianLastName" class="form-label">Nachname</label>
-                <input asp-for="GuardianLastName" class="form-control" />
-                <span asp-validation-for="GuardianLastName" class="text-danger"></span>
-            </div>
-            <div class="col-md-3">
-                <label asp-for="GuardianEmail" class="form-label">E-Mail</label>
-                <input asp-for="GuardianEmail" class="form-control" type="email" />
-                <span asp-validation-for="GuardianEmail" class="text-danger"></span>
-            </div>
-            <div class="col-md-3">
-                <label asp-for="GuardianPhone" class="form-label">Telefon</label>
-                <input asp-for="GuardianPhone" class="form-control" type="tel" />
-                <span asp-validation-for="GuardianPhone" class="text-danger"></span>
-            </div>
-        </div>
-    </div>
+    <partial name="_GuardianFields" model='new GuardianFieldsViewModel(
+        ShowMemberSelector: false,
+        GuardianMemberId: null,
+        GuardianOptions: null,
+        GuardianFirstName: Model.GuardianFirstName,
+        GuardianLastName: Model.GuardianLastName,
+        GuardianEmail: Model.GuardianEmail,
+        GuardianPhone: Model.GuardianPhone,
+        FieldPrefix: "",
+        InitiallyHidden: true,
+        KeepVisibleIfPopulated: false,
+        HeadingText: "Erziehungsberechtigter",
+        HeadingClass: "border-bottom pb-2",
+        IntroText: "Da Sie unter 18 Jahren sind, benötigen wir die Daten eines Erziehungsberechtigten.")' />
 
     @* Family section (shown when Family is selected) *@
-    <div class="col-12" id="familySection" style="display:none">
-        <h5 class="border-bottom pb-2">Familienmitglieder</h5>
-        <p class="text-muted">Fügen Sie weitere Familienmitglieder hinzu. Sie sind als Hauptmitglied automatisch Teil dieser Familie.</p>
+    @{
+        var existingFamilyRows = new List<object>();
+        for (int i = 0; i < Model.FamilyMembers.Count; i++)
+        {
+            var fm = Model.FamilyMembers[i];
+            var prefix = $"FamilyMembers[{i}].";
+            var rowErrors = ViewData.ModelState
+                .Where(kvp => kvp.Key.StartsWith(prefix, StringComparison.Ordinal) && kvp.Value?.Errors.Count > 0)
+                .SelectMany(kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage))
+                .ToList();
+            existingFamilyRows.Add(new
+            {
+                firstName = fm.FirstName,
+                lastName = fm.LastName,
+                email = fm.Email,
+                birthDay = fm.BirthDay,
+                birthMonth = fm.BirthMonth,
+                birthYear = fm.BirthYear,
+                errors = rowErrors
+            });
+        }
+        var initialFamilyRowsJson = System.Text.Json.JsonSerializer.Serialize(existingFamilyRows);
+    }
+    <partial name="_FamilyMembersEditor" model='new FamilyMembersEditorViewModel(
+        ShowJoinedAt: false,
+        IntroText: "Fügen Sie weitere Familienmitglieder hinzu. Sie sind als Hauptmitglied automatisch Teil dieser Familie.",
+        InitialRowsJson: initialFamilyRowsJson,
+        ShowHrBefore: false)' />
 
-        <div id="familyMembersContainer">
-            <div id="familyMemberTemplate" class="family-member-row row g-2 mb-2 p-2 border rounded" style="display:none">
-                @* INDEX is replaced when JavaScript adds a real family row. *@
-                <input type="hidden" name="FamilyMembers.Index" value="INDEX" />
-                <div class="col-md-3">
-                    <input name="FamilyMembers[INDEX].FirstName" class="form-control form-control-sm" placeholder="Vorname" />
-                </div>
-                <div class="col-md-3">
-                    <input name="FamilyMembers[INDEX].LastName" class="form-control form-control-sm" placeholder="Nachname" />
-                </div>
-                <div class="col-md-2">
-                    <input name="FamilyMembers[INDEX].Email" class="form-control form-control-sm" type="email" placeholder="E-Mail" />
-                </div>
-                <div class="col-md-3">
-                    <div class="row g-1">
-                        <div class="col-4">
-                            <select name="FamilyMembers[INDEX].BirthDay" class="form-select form-select-sm">
-                                <option value="">Tag</option>
-                                @for (int d = 1; d <= 31; d++) { <option value="@d">@d</option> }
-                            </select>
-                        </div>
-                        <div class="col-4">
-                            <select name="FamilyMembers[INDEX].BirthMonth" class="form-select form-select-sm">
-                                <option value="">Monat</option>
-                                @for (int m = 1; m <= 12; m++) { <option value="@m">@m</option> }
-                            </select>
-                        </div>
-                        <div class="col-4">
-                            <select name="FamilyMembers[INDEX].BirthYear" class="form-select form-select-sm">
-                                <option value="">Jahr</option>
-                                @for (int y = DateTime.Today.Year; y >= 1900; y--) { <option value="@y">@y</option> }
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-1">
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-family-row" title="Entfernen">&times;</button>
-                </div>
-                <div class="col-12">
-                    <span class="text-danger small family-row-errors" style="display:none"></span>
-                </div>
-            </div>
-        </div>
-
-        <button type="button" class="btn btn-sm btn-outline-primary" id="addFamilyMemberBtn">
-            + Familienmitglied hinzufügen
-        </button>
-        <hr />
-    </div>
-
-    <div class="col-12">
-        <h5 class="border-bottom pb-2">Adresse</h5>
-    </div>
-
-    <div class="col-md-6">
-        <label asp-for="Member.Street" class="form-label"></label>
-        <input asp-for="Member.Street" class="form-control" />
-    </div>
-    <div class="col-md-3">
-        <label asp-for="Member.ZipCode" class="form-label"></label>
-        <input asp-for="Member.ZipCode" class="form-control" />
-    </div>
-    <div class="col-md-3">
-        <label asp-for="Member.City" class="form-label"></label>
-        <input asp-for="Member.City" class="form-control" />
-    </div>
-    <div class="col-md-6">
-        <label asp-for="Member.Country" class="form-label"></label>
-        <input asp-for="Member.Country" class="form-control" />
-    </div>
+    <partial name="_AddressFields" model='new AddressFieldsViewModel(
+        Model.Member.Street,
+        Model.Member.ZipCode,
+        Model.Member.City,
+        Model.Member.Country,
+        ShowHeading: true)' />
 
     @* Zahlungsinformationen *@
     <div class="col-12 mt-3">
@@ -260,99 +181,5 @@
 </form>
 
 @section script {
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const feeSelect = document.getElementById('Member_MembershipFeeId');
-            const guardianSection = document.getElementById('guardianSection');
-            const familySection = document.getElementById('familySection');
-            const familyContainer = document.getElementById('familyMembersContainer');
-            const template = document.getElementById('familyMemberTemplate');
-            const addBtn = document.getElementById('addFamilyMemberBtn');
-            let familyMemberIndex = 0;
-
-            // A template is not a family member and must never be submitted.
-            template.querySelectorAll('input, select').forEach(el => { el.disabled = true; });
-
-            function getSelectedFeeCategory() {
-                const selectedOption = feeSelect.options[feeSelect.selectedIndex];
-                if (!selectedOption || !selectedOption.parentElement) return null;
-                return selectedOption.parentElement.getAttribute('label') || null;
-            }
-
-            function toggleSections() {
-                const category = getSelectedFeeCategory();
-                guardianSection.style.display = (category === '1' || category === 'Youth') ? 'block' : 'none';
-                familySection.style.display = (category === '2' || category === 'Family') ? 'block' : 'none';
-            }
-
-            function addFamilyMemberRow(data) {
-                data = data || {};
-                const clone = template.cloneNode(true);
-                clone.style.display = 'flex';
-                clone.removeAttribute('id');
-
-                const index = familyMemberIndex++;
-                clone.querySelectorAll('input, select').forEach(el => {
-                    el.disabled = false;
-                    const name = el.getAttribute('name');
-                    if (name) {
-                        el.setAttribute('name', name.replace('INDEX', index));
-                    }
-                    if (el.getAttribute('name') === 'FamilyMembers.Index') {
-                        el.value = index;
-                    }
-                });
-
-                if (data.firstName) clone.querySelector('[name$=".FirstName"]').value = data.firstName;
-                if (data.lastName) clone.querySelector('[name$=".LastName"]').value = data.lastName;
-                if (data.email) clone.querySelector('[name$=".Email"]').value = data.email;
-                if (data.birthDay) clone.querySelector('[name$=".BirthDay"]').value = String(data.birthDay);
-                if (data.birthMonth) clone.querySelector('[name$=".BirthMonth"]').value = String(data.birthMonth);
-                if (data.birthYear) clone.querySelector('[name$=".BirthYear"]').value = String(data.birthYear);
-
-                if (data.errors && data.errors.length > 0) {
-                    const errorSpan = clone.querySelector('.family-row-errors');
-                    if (errorSpan) {
-                        errorSpan.style.display = 'block';
-                        errorSpan.textContent = data.errors.join(' ');
-                    }
-                }
-
-                clone.querySelector('.remove-family-row').addEventListener('click', function () {
-                    clone.remove();
-                });
-
-                familyContainer.appendChild(clone);
-            }
-
-            @{
-                var existingFamilyRows = new List<object>();
-                for (int i = 0; i < Model.FamilyMembers.Count; i++)
-                {
-                    var fm = Model.FamilyMembers[i];
-                    var prefix = $"FamilyMembers[{i}].";
-                    var rowErrors = ViewData.ModelState
-                        .Where(kvp => kvp.Key.StartsWith(prefix, StringComparison.Ordinal) && kvp.Value?.Errors.Count > 0)
-                        .SelectMany(kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage))
-                        .ToList();
-                    existingFamilyRows.Add(new
-                    {
-                        firstName = fm.FirstName,
-                        lastName = fm.LastName,
-                        email = fm.Email,
-                        birthDay = fm.BirthDay,
-                        birthMonth = fm.BirthMonth,
-                        birthYear = fm.BirthYear,
-                        errors = rowErrors
-                    });
-                }
-            }
-            const initialFamilyRows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(existingFamilyRows));
-            initialFamilyRows.forEach(addFamilyMemberRow);
-
-            feeSelect.addEventListener('change', toggleSections);
-            addBtn.addEventListener('click', function () { addFamilyMemberRow({}); });
-            toggleSections();
-        });
-    </script>
+    <script src="~/_content/VereinMember/js/membership-forms.js" asp-append-version="true"></script>
 }

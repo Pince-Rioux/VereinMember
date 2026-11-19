@@ -1,0 +1,26 @@
+@model AddressFieldsViewModel
+@{
+    var idPrefix = Model.FieldPrefix.Replace('.', '_');
+}
+@if (Model.ShowHeading)
+{
+    <div class="col-12">
+        <h5 class="border-bottom pb-2">Adresse</h5>
+    </div>
+}
+<div class="col-md-6">
+    <label for="@(idPrefix)Street" class="form-label">Straße</label>
+    <input id="@(idPrefix)Street" name="@(Model.FieldPrefix)Street" value="@Model.Street" class="form-control" />
+</div>
+<div class="col-md-3">
+    <label for="@(idPrefix)ZipCode" class="form-label">PLZ</label>
+    <input id="@(idPrefix)ZipCode" name="@(Model.FieldPrefix)ZipCode" value="@Model.ZipCode" class="form-control" />
+</div>
+<div class="col-md-3">
+    <label for="@(idPrefix)City" class="form-label">Ort</label>
+    <input id="@(idPrefix)City" name="@(Model.FieldPrefix)City" value="@Model.City" class="form-control" />
+</div>
+<div class="col-md-6">
+    <label for="@(idPrefix)Country" class="form-label">Land</label>
+    <input id="@(idPrefix)Country" name="@(Model.FieldPrefix)Country" value="@Model.Country" class="form-control" />
+</div>
