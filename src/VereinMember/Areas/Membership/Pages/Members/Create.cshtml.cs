@@ -278,7 +278,6 @@ public class CreateModel(
                 return DateTime.MinValue;
             }
         }
-        public string Relationship { get; set; } = string.Empty;
         public DateTime JoinedAt { get; set; } = DateTime.Today;
     }
 }

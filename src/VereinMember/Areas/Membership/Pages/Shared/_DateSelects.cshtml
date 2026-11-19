@@ -1,46 +1,32 @@
-@* 
-    Cross-browser date select: Tag, Monat, Jahr dropdowns.
-    Works in Safari, Chrome, Firefox — no browser datepicker dependency.
-    
-    Model: Dictionary with keys: Prefix (string), Day (int?), Month (int?), Year (int?)
-    Example usage:
-        @await Html.PartialAsync("_DateSelects", new Dictionary<string, object> {
-            { "Prefix", "FamilyMembers[0].Birth" },
-            { "Day", null },
-            { "Month", null },
-            { "Year", null }
-        })
-*@@{
-    var prefix = ViewBag.DatePrefix ?? "";
-    var dayVal = ViewBag.DayVal;
-    var monthVal = ViewBag.MonthVal;
-    var yearVal = ViewBag.YearVal;
+@model DateSelectsViewModel
+@{
+    var idPrefix = Model.IdPrefix;
 }
 <div class="row g-1">
     <div class="col-4">
-        <select name="@(prefix)Day" class="form-select form-select-sm">
+        <select name="@(Model.Prefix)Day" id="@(idPrefix != null ? $"{idPrefix}Day" : null)" class="@Model.SelectCssClass">
             <option value="">Tag</option>
             @for (int d = 1; d <= 31; d++)
             {
-                <option value="@d" selected="@(dayVal != null && (int)dayVal == d ? true : null)">@d</option>
+                <option value="@d" selected="@(Model.Day == d ? "selected" : null)">@d</option>
             }
         </select>
     </div>
     <div class="col-4">
-        <select name="@(prefix)Month" class="form-select form-select-sm">
+        <select name="@(Model.Prefix)Month" id="@(idPrefix != null ? $"{idPrefix}Month" : null)" class="@Model.SelectCssClass">
             <option value="">Monat</option>
             @for (int m = 1; m <= 12; m++)
             {
-                <option value="@m" selected="@(monthVal != null && (int)monthVal == m ? true : null)">@m</option>
+                <option value="@m" selected="@(Model.Month == m ? "selected" : null)">@m</option>
             }
         </select>
     </div>
     <div class="col-4">
-        <select name="@(prefix)Year" class="form-select form-select-sm">
+        <select name="@(Model.Prefix)Year" id="@(idPrefix != null ? $"{idPrefix}Year" : null)" class="@Model.SelectCssClass">
             <option value="">Jahr</option>
             @for (int y = DateTime.Today.Year; y >= 1900; y--)
             {
-                <option value="@y" selected="@(yearVal != null && (int)yearVal == y ? true : null)">@y</option>
+                <option value="@y" selected="@(Model.Year == y ? "selected" : null)">@y</option>
             }
         </select>
     </div>
