@@ -24,19 +24,7 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
 
     public YouthAndFamilyFlowTests()
     {
-        ServiceCollectionExtensions.Enabled = true;
-        MembershipEncryption.Initialize(new AesEncryptionService(TestEncryptionKey.Value));
-
-        var dbName = $"YouthFamilyTest_{Guid.NewGuid()}";
-        var services = new ServiceCollection();
-        services.AddDbContext<MembershipDbContext>(o => o.UseInMemoryDatabase(dbName));
-        services.AddLogging();
-        services.AddScoped<IAuditService, AuditService>();
-        services.AddScoped<IMemberService, MemberService>();
-        services.AddScoped<IFamilyGroupService, FamilyGroupService>();
-        services.AddScoped<IValidator<Member>, MemberValidator>();
-        services.AddScoped<IInvitationService, InvitationService>();
-        _provider = services.BuildServiceProvider();
+        _provider = TestDataBuilder.CreateServiceProvider("YouthFamilyTest");
     }
 
     public void Dispose()

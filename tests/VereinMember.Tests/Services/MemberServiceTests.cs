@@ -12,75 +12,16 @@ public sealed class MemberServiceTests : IClassFixture<DbFixture>
         _dbFixture = dbFixture;
     }
 
-    private static MembershipFee CreateAdultFee(int id = 1)
-    {
-        return new MembershipFee
-        {
-            Id = id,
-            Name = "Adult Fee",
-            Amount = 50m,
-            Interval = FeeInterval.Yearly,
-            Category = FeeCategory.Adult,
-            IsDefault = true
-        };
-    }
+    private static MembershipFee CreateAdultFee(int id = 1) => TestDataBuilder.AdultFee(id: id);
 
-    private static MembershipFee CreateYouthFee(int id = 2)
-    {
-        return new MembershipFee
-        {
-            Id = id,
-            Name = "Youth Fee",
-            Amount = 25m,
-            Interval = FeeInterval.Yearly,
-            Category = FeeCategory.Youth,
-            IsDefault = false
-        };
-    }
+    private static MembershipFee CreateYouthFee(int id = 2) => TestDataBuilder.YouthFee(id: id);
 
-    private static MembershipFee CreateFamilyFee(int id = 3)
-    {
-        return new MembershipFee
-        {
-            Id = id,
-            Name = "Family Fee",
-            Amount = 80m,
-            Interval = FeeInterval.Yearly,
-            Category = FeeCategory.Family,
-            IsDefault = false
-        };
-    }
+    private static MembershipFee CreateFamilyFee(int id = 3) => TestDataBuilder.FamilyFee(id: id);
 
-    private static Department CreateDepartment(int id = 1)
-    {
-        return new Department
-        {
-            Id = id,
-            Name = "Soccer",
-            Description = "Soccer Department"
-        };
-    }
+    private static Department CreateDepartment(int id = 1) => TestDataBuilder.Department(id: id);
 
-    private static Member CreateAdultMember(int id, string email, MembershipFee fee, Department? dept = null, int? guardianId = null)
-    {
-        return new Member
-        {
-            Id = id,
-            FirstName = "John",
-            LastName = "Doe",
-            Email = email,
-            BirthDate = new DateTime(1990, 1, 1),
-            Status = MemberStatus.Active,
-            MembershipFeeId = fee.Id,
-            MembershipFee = fee,
-            DepartmentId = dept?.Id,
-            Department = dept,
-            JoinedAt = DateTime.UtcNow.AddDays(-30),
-            CreatedAt = DateTime.UtcNow.AddDays(-30),
-            UpdatedAt = DateTime.UtcNow.AddDays(-30),
-            CreatedBy = "test-user"
-        };
-    }
+    private static Member CreateAdultMember(int id, string email, MembershipFee fee, Department? dept = null, int? guardianId = null) =>
+        TestDataBuilder.Member(id: id, email: email, fee: fee, department: dept);
 
     // ----------------------------------------------------------------------- //
     //  CreateAsync tests

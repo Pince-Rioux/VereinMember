@@ -22,32 +22,20 @@ The Membership module is implemented as a **Razor Class Library (RCL)** that is 
 VereinMember/
 ├── Areas/
 │   └── Membership/
-│       ├── Controllers/
-│       │   ├── HomeController.cs             # redirect to /Membership/Members
-│       │   ├── MembersController.cs           # CRUD + search + filter API
-│       │   ├── DepartmentsController.cs       # CRUD API
-│       │   ├── FeesController.cs              # CRUD API
-│       │   ├── FamilyGroupsController.cs      # CRUD API
-│       │   └── ExportController.cs            # PDF/CSV/SEPA export
 │       ├── Pages/
-│       │   ├── Members/
-│       │   │   ├── Index.cshtml               # list with search/filter
-│       │   │   ├── Create.cshtml              # new member form (guardian/family dropdowns)
-│       │   │   ├── Edit.cshtml                # edit member form
-│       │   │   ├── Details.cshtml             # member detail view + guardian/family links
-│       │   │   └── Delete.cshtml              # confirm deactivation
-│       │   ├── Departments/
-│       │   ├── Fees/
-│       │   └── FamilyGroups/
-│       │       ├── Index.cshtml               # list with member count
-│       │       ├── Create.cshtml
-│       │       └── Edit.cshtml                 # add/remove members
-│       ├── Models/
-│       │   ├── MemberViewModel.cs
-│       │   ├── MemberListViewModel.cs
-│       │   ├── DepartmentViewModel.cs
-│       │   ├── FeeViewModel.cs
-│       │   └── FamilyGroupViewModel.cs
+│       │   ├── Index.cshtml                   # membership landing page
+│       │   ├── Login.cshtml / Logout.cshtml   # member authentication
+│       │   ├── Register.cshtml                # self-registration (Adult/Youth/Family)
+│       │   ├── Activate.cshtml                # invitation token activation
+│       │   ├── Profile.cshtml                 # self-service profile edit
+│       │   ├── Shared/                        # shared form partials (_AddressFields, _BankFields, _FamilyMembersSection)
+│       │   └── Members/
+│       │       ├── Index.cshtml               # list with search/filter
+│       │       ├── Create.cshtml              # new member form (guardian/family inline)
+│       │       ├── Edit.cshtml                # edit member form
+│       │       ├── Details.cshtml             # member detail view + GDPR export/erasure
+│       │       └── Delete.cshtml              # confirm deactivation
+│       ├── ViewModels/                        # explicit Razor InputModels (no direct entity binding)
 │       ├── _ViewImports.cshtml
 │       └── _ViewStart.cshtml
 ├── Data/
@@ -57,7 +45,8 @@ VereinMember/
 │   │   ├── DepartmentConfiguration.cs
 │   │   ├── MembershipFeeConfiguration.cs
 │   │   ├── AuditEntryConfiguration.cs
-│   │   └── FamilyGroupConfiguration.cs
+│   │   ├── FamilyGroupConfiguration.cs
+│   │   └── MemberInvitationConfiguration.cs
 │   └── Migrations/                        # EF Core migrations
 ├── Models/                                # domain entities (Poco)
 │   ├── Member.cs
@@ -67,12 +56,17 @@ VereinMember/
 │   ├── FeeCategory.cs                     # Adult / Youth / Family
 │   ├── FeeInterval.cs
 │   ├── FamilyGroup.cs
+│   ├── MemberInvitation.cs
 │   └── AuditEntry.cs
 ├── Services/
-│   ├── IMemberService.cs
-│   ├── MemberService.cs                   # CRUD + guardian validation + family group logic
-│   ├── IAuditService.cs
-│   ├── AuditService.cs
+│   ├── IMemberService.cs / MemberService.cs
+│   ├── IFamilyGroupService.cs / FamilyGroupService.cs
+│   ├── MemberCategoryRules.cs             # shared Youth/Family/Adult domain rules
+│   ├── MemberErasureHelper.cs             # shared GDPR erasure & purge cleanup
+│   ├── MembershipDisplay.cs / MembershipFormHelper.cs
+│   ├── IAuditService.cs / AuditService.cs
+│   ├── IInvitationService.cs / InvitationService.cs
+│   ├── IMemberAccountService.cs / DefaultMemberAccountService.cs
 │   └── Validators/
 │       └── MemberValidator.cs
 ├── Extensions/
@@ -92,11 +86,9 @@ VereinMember/
 ├─────────────────────────────────────────────────┤
 │           VereinMember RCL                │
 │                                                  │
-│  ┌─────────────┐    ┌──────────────────────┐    │
-│  │ Razor Pages  │    │   API Controllers    │    │
-│  │ (Areas/)     │    │   (Areas/)           │    │
-│  └──────┬──────┘    └──────────┬───────────┘    │
-│         │                      │                 │
+│  ┌──────────────────────────────────────────┐    │
+│  │ Razor Pages (Areas/Membership/Pages/)    │    │
+│  └────────────────────┬─────────────────────┘    │
 │  ┌──────┴──────────────────────┴───────────┐    │
 │  │          Service Layer                   │    │
 │  │  IMemberService   (guardian + family)   │    │
@@ -308,7 +300,7 @@ When the module needs to become an independent service:
 
 1. The RCL becomes a standalone ASP.NET Core web app
 2. `MembershipDbContext` connection string points to same (or replicated) DB
-3. Controllers become the primary interface (REST API)
+3. Add thin REST API endpoints/controllers if extracted as an independent service
 4. ClubSite calls the Membership API instead of referencing the library
 5. Zero entity or domain model changes required
 
@@ -321,7 +313,7 @@ When the module needs to become an independent service:
 | Framework | .NET 8 | matching ClubSite |
 | ORM | Entity Framework Core 9 | matching ClubSite's EFCore version |
 | Database | SQL Server | matching ClubSite |
-| UI | Razor Pages + Piranha Manager theme | reuse ClubSite design language |
+| UI | Razor Pages + Bootstrap | reuse ClubSite design language |
 | Auth | Piranha Identity (ASP.NET Core Identity) | reuse existing user/role infrastructure |
 | PDF export | EPPlus (already in ClubSite) + QuestPDF | for member lists and statistics |
 | SEPA XML | Custom builder (XmlDocument/XElement) | no external dependency needed; spec is fixed |
