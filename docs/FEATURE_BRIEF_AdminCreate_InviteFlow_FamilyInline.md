@@ -13,7 +13,7 @@ The admin `/Membership/Members/Create` page creates member records but sends **n
 
 ### KR 1.3/1.9: Family inline UI needs polish
 The admin Create page already has family inline sub-member rows (committed Sep 3, `2fb16fe`), but:
-- No **Relationship** field (Ehepartner, Kind, etc.) — the `FamilyMemberItem` model has it, the UI doesn't
+- ~~No **Relationship** field (Ehepartner, Kind, etc.)~~ *(removed in R2 cleanup — not stored on `Member`)*
 - No **JoinedAt** field for family sub-members (admin sets join date)
 - Validation errors for sub-members aren't displayed clearly
 - After creating a family, no invitations are sent to sub-members

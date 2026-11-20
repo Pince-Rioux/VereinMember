@@ -61,6 +61,16 @@ internal static class MemberErasureHelper
             member.LeftAt = now;
         member.UpdatedAt = now;
 
+        // Redact historical audit snapshots for this member so erased PII is not retained in AuditLog
+        var historicalAuditEntries = await context.AuditLog
+            .Where(a => a.EntityName == nameof(Member) && a.EntityId == member.Id)
+            .ToListAsync(ct);
+        foreach (var entry in historicalAuditEntries)
+        {
+            entry.OldValues = null;
+            entry.NewValues = null;
+        }
+
         await context.SaveChangesAsync(ct);
 
         await auditService.LogAsync(

@@ -174,6 +174,12 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
         erasureAudit.OldValues.Should().BeNull();
         erasureAudit.NewValues.Should().BeNull();
 
+        var redactedCreateAudit = await context.AuditLog
+            .AsNoTracking()
+            .SingleAsync(a => a.EntityId == created.Id && a.Action == "Created");
+        redactedCreateAudit.OldValues.Should().BeNull();
+        redactedCreateAudit.NewValues.Should().BeNull();
+
         var erased = await context.Members.AsNoTracking().SingleAsync(m => m.Id == created.Id);
         erased.FirstName.Should().Be("[erased]");
         erased.BankIban.Should().BeNull();
@@ -267,6 +273,16 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<MembershipUser>>();
 
         var member = await SeedMemberAsync(context, "purge-me@example.com", MemberStatus.Former, DateTime.UtcNow.AddYears(-4));
+        context.AuditLog.Add(new AuditEntry
+        {
+            EntityName = nameof(Member),
+            EntityId = member.Id,
+            Action = "Created",
+            NewValues = "{\"FirstName\":\"Max\",\"Email\":\"purge-me@example.com\"}",
+            PerformedBy = "admin@verein.de",
+            PerformedAt = DateTime.UtcNow.AddYears(-5)
+        });
+        await context.SaveChangesAsync();
         await invitationService.CreateInvitationAsync(member.Id, member.Email);
         (await userManager.CreateAsync(new MembershipUser { Email = member.Email, UserName = member.Email })).Succeeded.Should().BeTrue();
 
@@ -291,6 +307,10 @@ public sealed class AuditPurgeAndAccountHardeningTests : IDisposable
         var audit = await context.AuditLog.AsNoTracking().SingleAsync(a => a.EntityId == member.Id && a.Action == "Purge");
         audit.OldValues.Should().BeNull();
         audit.NewValues.Should().BeNull();
+
+        var historicalCreated = await context.AuditLog.AsNoTracking().SingleAsync(a => a.EntityId == member.Id && a.Action == "Created");
+        historicalCreated.OldValues.Should().BeNull();
+        historicalCreated.NewValues.Should().BeNull();
     }
 
     [Fact]

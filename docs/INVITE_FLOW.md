@@ -35,7 +35,7 @@ Missing flows:
    - Telefon (optional), Straße, PLZ, Stadt
    - Beitragsgruppe: Dropdown of available `MembershipFee` options (filtered by FeeCategory)
 3. **Conditional:** If selected fee category is **Youth** → Guardian fields become visible (dropdown of existing Adult members or "My guardian is not yet a member" option)
-4. **Conditional:** If selected fee category is **Family** → additional inline fields for each family member (name, email, birthdate, relationship)
+4. **Conditional:** If selected fee category is **Family** → additional inline fields for each family member (name, email, birthdate)
 5. Visitor submits
 6. **Validation:**
    - E-Mail unique
@@ -189,7 +189,7 @@ Piranha Identity wird für das Shared Auth genutzt — der Member existiert als 
 - Datenbank-Migration für `Invitations`-Tabelle
 - `InvitationService` (Token generieren/validieren/consumieren)
 - E-Mail-Versand (nutzt existierenden ClubSite-MailService)
-- `MembersController.Invite` — neue Action (POST)
+- `Members/Create` Razor Page — Admin Create + Invite-Flow (POST)
 - `Activate` — neue Razor Page `/Membership/Activate`
 - JavaScript für Conditional-Fields: Geburtsdatum → Guardian (Youth), FeeCategory=Family → inline sub-members
 - Piranha Identity User Creation beim Token-Accept (Member existiert bereits, Identity User wird verknüpft)
