@@ -123,7 +123,7 @@ Every mutation to personal data is logged:
 - **View/read:** Not logged (would create excessive data)
 - **Export:** Logged as "action": "Exported" with entity count and format
 
-The audit log is **append-only** — no UPDATE or DELETE operations allowed on AuditLog table.
+The audit log is **append-only** (no DELETE of audit rows), except for redacting `OldValues` and `NewValues` on historical `Member` audit entries during GDPR erasure or retention purge so erased personal data is not retained in snapshots.
 
 ---
 
