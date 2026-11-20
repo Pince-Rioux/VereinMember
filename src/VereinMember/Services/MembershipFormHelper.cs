@@ -59,15 +59,22 @@ public static class MembershipFormHelper
     {
         var familyGroups = await context.FamilyGroups
             .AsNoTracking()
-            .Include(g => g.Members)
             .OrderBy(g => g.Id)
+            .Select(g => new
+            {
+                g.Id,
+                g.Name,
+                Members = g.Members
+                    .Where(m => m.Status != MemberStatus.Former)
+                    .Select(m => new { m.FirstName, m.LastName })
+                    .ToList()
+            })
             .ToListAsync();
 
         return familyGroups
             .Select(g =>
             {
                 var activeNames = g.Members
-                    .Where(m => m.Status != MemberStatus.Former)
                     .OrderBy(m => m.LastName)
                     .ThenBy(m => m.FirstName)
                     .Select(m => $"{m.FirstName} {m.LastName}".Trim())
@@ -78,7 +85,7 @@ public static class MembershipFormHelper
                 return new SelectListItem
                 {
                     Value = g.Id.ToString(),
-                    Text = MembershipDisplay.FormatFamilyGroupLabel(g, hint)
+                    Text = MembershipDisplay.FormatFamilyGroupLabel(new FamilyGroup { Id = g.Id, Name = g.Name }, hint)
                 };
             })
             .ToList();

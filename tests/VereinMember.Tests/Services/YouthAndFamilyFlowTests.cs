@@ -349,6 +349,7 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         var familyGroupService = scope.ServiceProvider.GetRequiredService<IFamilyGroupService>();
         var group1 = await familyGroupService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
         var group2 = await familyGroupService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
+        var group3 = await familyGroupService.CreateFamilyGroupAsync("Familie Müller", "admin@verein.de");
         var unnamedGroup = await familyGroupService.CreateFamilyGroupAsync(null, "admin@verein.de");
 
         context.Members.AddRange(
@@ -382,6 +383,20 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
             },
             new Member
             {
+                FirstName = "Anna",
+                LastName = "Müller",
+                Email = "another.anna.mueller@example.com",
+                BirthDate = new DateTime(1990, 4, 5),
+                MembershipFeeId = familyFee.Id,
+                FamilyGroupId = group3.Id,
+                Status = MemberStatus.Active,
+                JoinedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = "admin@verein.de"
+            },
+            new Member
+            {
                 FirstName = "Alt",
                 LastName = "Müller",
                 Email = "alt.mueller@example.com",
@@ -404,14 +419,52 @@ public sealed class YouthAndFamilyFlowTests : IDisposable
         {
             PageContext = new PageContext { HttpContext = new DefaultHttpContext() }
         };
+        editModel.TempData = new TempDataDictionary(editModel.HttpContext, new TestTempDataProvider());
+
+        var expectedLabels = new[]
+        {
+            $"Familie Müller (#{group1.Id}) – Anna Müller",
+            $"Familie Müller (#{group2.Id}) – Tim Müller",
+            $"Familie Müller (#{group3.Id}) – Anna Müller",
+            $"Familie #{unnamedGroup.Id}"
+        };
+        var expectedValues = new[]
+        {
+            group1.Id.ToString(), group2.Id.ToString(), group3.Id.ToString(), unnamedGroup.Id.ToString()
+        };
 
         var result = await editModel.OnGetAsync(firstMember.Id);
         result.Should().BeOfType<PageResult>();
 
-        editModel.FamilyGroupOptions.Select(o => o.Text).Should().Equal(
-            $"Familie Müller (#{group1.Id}) – Anna Müller",
-            $"Familie Müller (#{group2.Id}) – Tim Müller",
-            $"Familie #{unnamedGroup.Id}");
+        editModel.Input.FamilyGroupId.Should().Be(group1.Id);
+        editModel.FamilyGroupOptions.Select(o => o.Text).Should().Equal(expectedLabels);
+        editModel.FamilyGroupOptions.Select(o => o.Value).Should().Equal(expectedValues);
+
+        // Saving without changing the selection keeps its ID, not another identically named group.
+        (await editModel.OnPostAsync()).Should().BeOfType<RedirectToPageResult>();
+        (await context.Members.AsNoTracking().SingleAsync(m => m.Id == firstMember.Id))
+            .FamilyGroupId.Should().Be(group1.Id);
+
+        // A validation failure must reload the same labels and retain the attempted selection.
+        editModel.Input.FamilyGroupId = group3.Id;
+        editModel.Input.BirthDay = 31;
+        editModel.Input.BirthMonth = 2;
+        (await editModel.OnPostAsync()).Should().BeOfType<PageResult>();
+        editModel.ModelState.Should().ContainKey("Input.BirthDate");
+        editModel.Input.FamilyGroupId.Should().Be(group3.Id);
+        editModel.FamilyGroupOptions.Select(o => o.Text).Should().Equal(expectedLabels);
+        editModel.FamilyGroupOptions.Select(o => o.Value).Should().Equal(expectedValues);
+        (await context.Members.AsNoTracking().SingleAsync(m => m.Id == firstMember.Id))
+            .FamilyGroupId.Should().Be(group1.Id);
+
+        editModel.ModelState.Clear();
+        editModel.Input.BirthDay = firstMember.BirthDate.Day;
+        editModel.Input.BirthMonth = firstMember.BirthDate.Month;
+        (await editModel.OnPostAsync()).Should().BeOfType<RedirectToPageResult>();
+        (await context.Members.AsNoTracking().SingleAsync(m => m.Id == firstMember.Id))
+            .FamilyGroupId.Should().Be(group3.Id);
+        (await context.Members.AsNoTracking().SingleAsync(m => m.Email == "tim.mueller@example.com"))
+            .FamilyGroupId.Should().Be(group2.Id);
     }
 
     [Fact]
