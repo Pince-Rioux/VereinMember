@@ -4,17 +4,22 @@ An add-on member management system for the ClubSite sports club website.
 
 ## Project Status
 
-**Phase 1 — Foundation:** Core entities, DbContext, CRUD pages (active development)
+**Phase 3 — Operational Readiness & v1.0 Release (active):**
+- **Phase 1 (Foundation & Security Hardening):** completed and merged on `main` (fail-closed AES-256-GCM encryption, atomic invitation tokens, audit snapshot redaction on erasure/purge, no REST API surface).
+- **Phase 2 & 2.5 (Core Workflows & Refactoring R1–R6):** completed and merged (PRs `#20`–`#27`), **125 / 125** automated tests passing in CI.
+- **Phase 3 (in progress):** documentation reconciliation, operations/backup runbook (`docs/OPERATIONS.md`), staging browser acceptance, and production release readiness.
 
 ## Structure
 
 ```
-Membership/
-├── docs/                   # OKR, use cases, architecture, security
+VereinMember/
+├── docs/                   # OKR, use cases, architecture, security, operations
 │   ├── OKR.md
 │   ├── USE_CASES.md
 │   ├── ARCHITECTURE.md
-│   └── DSGVO_SECURITY.md
+│   ├── DSGVO_SECURITY.md
+│   ├── INVITE_FLOW.md
+│   └── OPERATIONS.md
 ├── src/
 │   └── VereinMember/   # Razor Class Library
 │       ├── Areas/Membership/  # Pages, ViewModels (InputModels)
@@ -23,7 +28,7 @@ Membership/
 │       ├── Services/          # Business logic interfaces + implementations
 │       └── Extensions/        # DI registration helpers
 └── tests/
-    └── VereinMember.Tests/
+    └── VereinMember.Tests/    # 125 unit, service, SQL projection & HTTP tests
 ```
 
 ## Development Lifecycle

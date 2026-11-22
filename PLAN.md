@@ -1,5 +1,7 @@
 # Membership Module — Architecture Cleanup Plan
 
+> **Status: Historical (superseded).** This plan captured the initial RCL extraction and Identity migration steps. That work is complete and superseded by the current codebase on `main` and `ROADMAP.md` (note: REST API controllers were subsequently removed in PR `#24`; current suite has 125 passing tests). Keep for historical context only.
+
 ## Current Problem
 
 Two competing membership implementations exist:
