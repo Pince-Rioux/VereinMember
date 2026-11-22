@@ -196,3 +196,16 @@ Technisch-organisatorische Maßnahmen: Siehe dieses Dokument
 | Guardian re-assignment before erasure | Blocked if dependents exist | planned |
 | Dependency vulnerability scanning | `dotnet list package --vulnerable` | CI planned |
 | Penetration testing | TBD | post-Phase 2 |
+
+---
+
+## 12. Phase 3.2 — Club Privacy & Retention Sign-Off Checklist
+
+Before enabling `VereinMember` with real member data in production (`ROADMAP.md` 3.2):
+
+| Decision item | Current technical default / behavior | Sign-off required from | Status |
+|---|---|---|---|
+| Lawful basis & privacy/SEPA wording | `PrivacyConsentTextVersion` and `SepaMandateTextVersion` recorded on `Member` | Club board / privacy adviser | Pending |
+| Per-category retention & `MembershipPurge` | `Enabled=false`, `DryRun=true`, `RetentionYears=3` (`PurgeOptions.cs`); verify statutory tax/accounting retention vs. 3-year default | Club board / treasurer | Pending |
+| Data-subject export & erasure | Self-service / admin export + `ErasureAsync` with `AuditLog` snapshot redaction (blocks if active guardian dependents exist) | Privacy adviser | Pending |
+| Backup retention & restore handling | Encrypted `BankIban`/`BankBic` backed up with `MembershipEncryption:Key`; document legal-hold / post-restore re-erasure procedure | Club / operator | Pending |

@@ -19,7 +19,7 @@ Phase 3 operational reference for hosting `VereinMember` inside `ClubSite`. Keep
 | `FeatureManagement:EnableMembership` | Host | Enables/disables the module. `[RequireMembershipEnabled]` blocks requests server-side when `false`. |
 | `ConnectionStrings:MembershipDb` | Host (secret store) | Runtime SQL Server connection string for `MembershipDbContext`. |
 | `MEMBERSHIP_CONNECTION_STRING` | Operator (CLI env) | Required by `DesignTimeDbContextFactory` for `dotnet ef` migrations. Fails if unset. |
-| `MembershipEncryption:Key` / `MEMBERSHIP_ENCRYPTION_KEY` | Host (secret store) | Base64-encoded 32-byte (256-bit) AES-256-GCM key for IBAN/BIC/notes encryption. Startup **fails closed** if missing or invalid. |
+| `MembershipEncryption:Key` / `MEMBERSHIP_ENCRYPTION_KEY` | Host (secret store) | Base64-encoded 32-byte (256-bit) AES-256-GCM key for `BankIban` and `BankBic` encryption. Startup **fails closed** if missing or invalid. |
 | `MembershipMail` | Host | Mail transport (`Mode`, `Smtp:Server`, etc.). Development captures `.eml` files; production requires valid SMTP settings (fail-closed if `Mode=smtp` without `Smtp:Server`). |
 | `MembershipPurge` | Host | Retention/purge settings (`Enabled`, `DryRun`, retention window). Keep `Enabled=false` or `DryRun=true` until club retention sign-off (`ROADMAP.md` 3.2). |
 | `ClubMembership:PublicBaseUrl` | Host | Trusted HTTPS base URL used for invitation/activation links. |
@@ -66,10 +66,37 @@ Phase 3 operational reference for hosting `VereinMember` inside `ClubSite`. Keep
 
 - **What must be backed up together:**
   1. SQL Server membership database (`Membership` schema).
-  2. `MembershipEncryption:Key` (without this key, encrypted `BankIban`, `BankBic`, and `Notes` fields cannot be decrypted).
+  2. `MembershipEncryption:Key` (without this key, encrypted `BankIban` and `BankBic` fields cannot be decrypted; `Notes` is stored in plaintext).
   3. ASP.NET Core DataProtection key ring (cookie/antiforgery continuity).
 - **Restore rehearsal (Phase 3.3 gate):**
   - Restore a synthetic backup onto an isolated SQL instance with the backed-up `MembershipEncryption:Key`.
   - Verify member counts, `AuditLog` entries, and decryption of synthetic IBAN/BIC fields.
 - **Emergency rollback:**
   - Set `FeatureManagement:EnableMembership=false` to immediately disable `/Membership` endpoints server-side, or roll back the `ClubSite` release artifact and restore the pre-migration DB snapshot if a schema change must be reverted.
+
+---
+
+## 7. Phase 3 Verification Evidence (2026-11-22)
+
+- **Backup / Restore rehearsal (`ROADMAP.md` 3.3, isolated SQL Server 2022):**
+  - Migrated synthetic source DB (`6` migrations), seeded encrypted members + `AuditLog`, ran `BACKUP DATABASE` (`522` pages) and `RESTORE DATABASE ... WITH MOVE` into a separate DB.
+  - Verified identical row counts, ciphertext at rest (`BankIban`/`BankBic`), exact plaintext decryption with the backed-up `MembershipEncryption:Key`, and fail-closed `AuthenticationTagMismatchException` with an incorrect key.
+- **SQL load benchmark (`ROADMAP.md` 3.4, `1,200` synthetic members / `150` family groups):**
+  - `SearchAsync(page=1, size=25)`: avg `31.6 ms`, p95 `53.6 ms`
+  - `SearchAsync("Muster-07", Active)`: avg `37.4 ms`, p95 `47.4 ms`
+  - `GetByIdAsync` / `GetByEmailAsync`: avg `4.2 ms` / `4.0 ms` (p95 `5.8 ms` / `6.8 ms`)
+  - `LoadFamilyGroupOptionsAsync`: avg `18.3 ms`, p95 `22.4 ms`
+
+---
+
+## 8. v1.0 Release Candidate & Pilot Gate (`ROADMAP.md` 3.5)
+
+Before publishing an immutable `v1.0.0` / `v1.0.0-rc.*` NuGet package or starting a staff pilot:
+
+1. **Package & workflow alignment:**
+   - Pin `VereinMail` from `1.0.0-dev` to the reviewed compatible release (`ROADMAP.md` 2.7).
+   - Ensure `.github/workflows/publish.yml` builds in `Release`, runs `dotnet test`, and passes `inputs.version` (`-p:PackageVersion=...`) so the published `.nupkg` matches the requested tag/version (currently `src/VereinMember/VereinMember.csproj` defaults to `1.0.1-dev`).
+2. **Pre-pilot gates:**
+   - Desktop & iPhone browser acceptance on staging (`/Membership`, Piranha redirect `/verein/mitgliederbereich` → `/Membership`).
+   - Club privacy/retention sign-off (`docs/DSGVO_SECURITY.md` Section 12).
+   - Explicit go/no-go approval from Yves / axuno / club board before deploying behind `FeatureManagement:EnableMembership`.
