@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="NuGet.config" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="src/VereinMember/VereinMember.csproj" />
+  <Project Path="tests/VereinMember.Tests/VereinMember.Tests.csproj" />
+  <Project Path="tests/VereinMember.E2ETests/VereinMember.E2ETests.csproj" />
+</Solution>
