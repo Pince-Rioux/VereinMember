@@ -4,36 +4,70 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version to publish"
-        required: false
+        description: "SemVer package version to publish (e.g. 1.0.0-rc.1 or 1.0.0)"
+        required: true
         type: string
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0
-
-      - name: Build package
-        working-directory: src/VereinMember
+      - name: Validate version
+        env:
+          PKG_VERSION: ${{ inputs.version }}
         run: |
-          dotnet restore
-          dotnet build --no-restore
-          dotnet pack --no-restore
+          if ! [[ "$PKG_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid SemVer package version: '$PKG_VERSION'"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Add NuGet sources
+        run: |
+          dotnet nuget source add "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --name github \
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GITHUB_TOKEN }}" || true
+
+      - name: Restore
+        run: dotnet restore VereinMember.sln
+
+      - name: Build
+        run: dotnet build VereinMember.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test VereinMember.sln --no-build --configuration Release --verbosity normal
+
+      - name: Pack
+        env:
+          PKG_VERSION: ${{ inputs.version }}
+        run: |
+          dotnet pack src/VereinMember/VereinMember.csproj \
+            --no-build \
+            --configuration Release \
+            -p:PackageVersion="$PKG_VERSION" \
+            -o .nupkg-release
 
       - name: Publish to GitHub Packages
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
+          PKG_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          SRC="https://nuget.pkg.github.com/Pince-Rioux"
-          nupkg=$(find src -name '*.nupkg' -print -quit)
-          [ -n "$nupkg" ] || { echo "::error::no nupkg"; exit 1; }
+          SRC="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          nupkg=".nupkg-release/VereinMember.${PKG_VERSION}.nupkg"
+          [ -f "$nupkg" ] || { echo "::error::Package not found: $nupkg"; exit 1; }
           echo "package: $nupkg"
           dotnet nuget push "$nupkg" \
             -s "$SRC" \
