@@ -28,7 +28,8 @@ VereinMember/
 │       ├── Services/          # Business logic interfaces + implementations
 │       └── Extensions/        # DI registration helpers
 └── tests/
-    └── VereinMember.Tests/    # 125 unit, service, SQL projection & HTTP tests
+    ├── VereinMember.Tests/    # 125 unit, service, SQL projection & HTTP tests
+    └── VereinMember.E2ETests/ # Playwright tests with an independent minimal host
 ```
 
 ## Development Lifecycle
@@ -95,6 +96,11 @@ The migration `AddRegistrationConsents` adds the corresponding storage.
 - Razor Pages (Areas/Membership)
 - Piranha Identity (shared auth)
 - xUnit + WebApplicationFactory (testing)
+- Playwright for .NET (browser integration tests)
+
+The [browser integration tests](tests/VereinMember.E2ETests/README.md) run against
+the module's real Razor Pages without a ClubSite or Piranha dependency. They use
+an isolated SQLite database and local `.eml` delivery.
 
 ## License
 
