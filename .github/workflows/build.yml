@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ main, feature/*, fix/* ]
+    branches: [ main, feature/*, fix/*, test/* ]
   pull_request:
     branches: [ main ]
 
@@ -35,8 +35,11 @@ jobs:
       - name: Build
         run: dotnet build VereinMember.sln --no-restore --configuration Release
 
+      - name: Install Playwright browser
+        run: pwsh tests/VereinMember.E2ETests/bin/Release/net8.0/playwright.ps1 install --with-deps chromium
+
       - name: Test
-        run: dotnet test VereinMember.sln --no-build --configuration Release --verbosity normal
+        run: dotnet test VereinMember.sln --no-build --configuration Release --verbosity minimal
 
       - name: Pack
         run: dotnet pack src/VereinMember/VereinMember.csproj --no-build --configuration Release -o .nupkg-test
