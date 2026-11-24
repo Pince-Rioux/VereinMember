@@ -4,8 +4,14 @@ obj/
 
 ## IDE
 .vs/
+.idea/
+.vscode/
 *.user
 *.suo
+
+## Test results and logs
+TestResults/
+*.log
 
 ## ClubSite integration
 Secrets/

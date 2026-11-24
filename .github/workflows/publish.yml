@@ -31,7 +31,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Add NuGet sources
         run: |
@@ -41,16 +41,16 @@ jobs:
             --password "${{ secrets.GITHUB_TOKEN }}" || true
 
       - name: Restore
-        run: dotnet restore VereinMember.sln
+        run: dotnet restore VereinMember.slnx --verbosity minimal
 
       - name: Build
-        run: dotnet build VereinMember.sln --no-restore --configuration Release
+        run: dotnet build VereinMember.slnx --no-restore --configuration Release --verbosity minimal
 
       - name: Install Playwright browser
         run: pwsh tests/VereinMember.E2ETests/bin/Release/net8.0/playwright.ps1 install --with-deps chromium
 
       - name: Test
-        run: dotnet test VereinMember.sln --no-build --configuration Release --verbosity normal
+        run: dotnet test VereinMember.slnx --no-build --configuration Release --verbosity minimal
 
       - name: Pack
         env:

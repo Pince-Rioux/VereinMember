@@ -1,0 +1,25 @@
+* text=auto
+
+*.cs text diff=csharp
+*.cshtml text diff=html
+*.csproj text
+*.sln text eol=crlf
+*.slnx text eol=lf
+*.editorconfig text
+*.json text
+*.xml text
+*.config text
+*.props text
+*.targets text
+*.md text diff=markdown
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+pre-push text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.gif binary
+*.jpg binary
+*.pdf binary

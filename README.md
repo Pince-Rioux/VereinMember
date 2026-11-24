@@ -13,6 +13,10 @@ An add-on member management system for the ClubSite sports club website.
 
 ```
 VereinMember/
+├── VereinMember.slnx       # Solution with module and test projects
+├── Directory.Build.props   # Shared .NET project configuration
+├── .editorconfig          # Shared C# formatting rules
+├── .gitattributes         # Line-ending and diff configuration
 ├── docs/                   # OKR, use cases, architecture, security, operations
 │   ├── OKR.md
 │   ├── USE_CASES.md
@@ -30,6 +34,20 @@ VereinMember/
 └── tests/
     ├── VereinMember.Tests/    # 125 unit, service, SQL projection & HTTP tests
     └── VereinMember.E2ETests/ # Playwright tests with an independent minimal host
+```
+
+## Building
+
+The projects target **.NET 8**. Use **.NET SDK 10 or newer** for the standard
+`.slnx` solution build.
+
+```bash
+dotnet restore VereinMember.slnx
+dotnet build VereinMember.slnx --no-restore --configuration Release
+
+# Install the browser once before running the complete test suite
+pwsh tests/VereinMember.E2ETests/bin/Release/net8.0/playwright.ps1 install chromium
+dotnet test VereinMember.slnx --no-build --configuration Release --verbosity minimal
 ```
 
 ## Development Lifecycle
