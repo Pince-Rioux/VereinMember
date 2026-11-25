@@ -1,7 +1,6 @@
 name: build
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main, feature/*, fix/*, test/* ]
   pull_request:
@@ -23,14 +22,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Add NuGet sources
-        run: |
-          dotnet nuget source add "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            --name github \
-            --username "${{ github.repository_owner }}" \
-            --password "${{ secrets.GH_PAT }}" || true
-
       - name: Restore
+        env:
+          NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ github.token }};ValidAuthenticationTypes=Basic
         run: dotnet restore VereinMember.slnx --verbosity minimal
 
       - name: Build
