@@ -24,7 +24,7 @@ jobs:
 
       - name: Restore
         env:
-          NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ github.token }};ValidAuthenticationTypes=Basic
+          NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ secrets.GH_PAT }};ValidAuthenticationTypes=Basic
         run: dotnet restore VereinMember.slnx --verbosity minimal
 
       - name: Build
