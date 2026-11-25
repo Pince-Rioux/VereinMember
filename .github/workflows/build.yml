@@ -26,8 +26,8 @@ jobs:
         run: |
           dotnet nuget source add "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
             --name github \
-            --username "${{ github.actor }}" \
-            --password "${{ secrets.GITHUB_TOKEN }}" || true
+            --username "${{ github.repository_owner }}" \
+            --password "${{ secrets.GH_PAT }}" || true
 
       - name: Restore
         run: dotnet restore VereinMember.slnx --verbosity minimal
